@@ -16,6 +16,9 @@ public final class AppState {
     /** Чи замінювати також 16:9 у форматі double. */
     boolean includeDouble;
 
+    /** Мова інтерфейсу: «uk», «en» або null — як у системі. */
+    String language;
+
     List<ManualGameEntry> manualGames = new ArrayList<>();
     List<PatchRecord> patches = new ArrayList<>();
 
@@ -29,6 +32,10 @@ public final class AppState {
 
     public boolean includeDouble() {
         return includeDouble;
+    }
+
+    public String language() {
+        return language;
     }
 
     public List<ManualGameEntry> manualGames() {

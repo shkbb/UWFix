@@ -95,6 +95,10 @@ public final class PatchStore {
         state.includeDouble = value;
     }
 
+    public synchronized void setLanguage(String code) {
+        state.language = code;
+    }
+
     public synchronized void addManualGame(ManualGameEntry entry) {
         state.manualGames.removeIf(g -> key(Path.of(g.path())).equals(key(Path.of(entry.path()))));
         state.manualGames.add(entry);

@@ -6,6 +6,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import ua.uwfix.i18n.I18n;
+import ua.uwfix.i18n.Language;
 import ua.uwfix.ui.AppContext;
 import ua.uwfix.ui.MainController;
 
@@ -23,6 +25,7 @@ public final class App extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         context = AppContext.create(getParameters().getRaw());
+        I18n.setLanguage(Language.detect(context.store().state().language()));
 
         FXMLLoader loader = new FXMLLoader(MainController.class.getResource("main.fxml"));
         MainController controller = new MainController(context, stage);
@@ -33,7 +36,7 @@ public final class App extends Application {
         scene.getStylesheets().add(
                 Objects.requireNonNull(MainController.class.getResource("style.css")).toExternalForm());
 
-        stage.setTitle(NAME + " — катсцени без чорних смуг");
+        stage.setTitle(I18n.t("app.title"));
         stage.setMinWidth(960);
         stage.setMinHeight(620);
         try (InputStream icon = MainController.class.getResourceAsStream("icon.png")) {

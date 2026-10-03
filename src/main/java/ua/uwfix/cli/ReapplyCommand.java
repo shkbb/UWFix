@@ -1,5 +1,7 @@
 package ua.uwfix.cli;
 
+import ua.uwfix.i18n.I18n;
+import ua.uwfix.i18n.Language;
 import ua.uwfix.patch.PatchException;
 import ua.uwfix.patch.PatchRecord;
 import ua.uwfix.patch.PatchStore;
@@ -40,6 +42,7 @@ public final class ReapplyCommand {
 
     public static ReapplyCommand createDefault() {
         PatchStore store = PatchStore.openDefault();
+        I18n.setLanguage(Language.detect(store.state().language()));
         return new ReapplyCommand(new Patcher(store), PatchStore.defaultHome().resolve("reapply.log"));
     }
 

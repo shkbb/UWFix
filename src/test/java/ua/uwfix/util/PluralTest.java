@@ -26,4 +26,10 @@ class PluralTest {
     void ukrainianPluralForms(long n, String expected) {
         assertEquals(expected, Plural.of(n, "файл", "файли", "файлів"));
     }
+
+    @ParameterizedTest
+    @CsvSource({"0, MANY", "1, ONE", "2, MANY", "21, MANY", "101, MANY"})
+    void englishHasOnlyOneAndOther(long n, Plural.Category expected) {
+        assertEquals(expected, Plural.category(ua.uwfix.i18n.Language.EN, n));
+    }
 }
