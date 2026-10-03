@@ -152,3 +152,7 @@ flowchart LR
 ## Технології
 
 Java 17 · JavaFX 21 (FXML + CSS) · Gson · JUnit 5 · Maven · jpackage/jlink · WiX Toolset 3
+
+## Ліцензія
+
+[MIT](LICENSE). Програма надається «як є»: файли ігор ти змінюєш на власний ризик.

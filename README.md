@@ -149,3 +149,7 @@ Horspool skips most of the data and becomes the fastest — that is why UWFix us
 ## Tech stack
 
 Java 17 · JavaFX 21 (FXML + CSS) · Gson · JUnit 5 · Maven · jpackage/jlink · WiX Toolset 3
+
+## License
+
+[MIT](LICENSE). The software is provided “as is”: you modify game files at your own risk.
