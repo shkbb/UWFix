@@ -134,10 +134,10 @@ public final class ResolutionUnlocker {
 
     // ------------------------------------------------------------------ Source
 
-    /** Папки модів Source (hl2, portal2, left4dead2…) — у них лежить gameinfo.txt; рушій — bin\engine.dll. */
+    /** Папки модів Source (hl2, portal2, left4dead2…) — у них лежить gameinfo.txt; рушій — bin\engine.dll (.so). */
     static List<Path> sourceModFolders(Path installDir) {
         List<Path> mods = new ArrayList<>();
-        if (!Files.isRegularFile(installDir.resolve("bin").resolve("engine.dll"))) {
+        if (!EngineDetector.isSource(installDir)) {
             return mods;
         }
         try (DirectoryStream<Path> dirs = Files.newDirectoryStream(installDir, Files::isDirectory)) {

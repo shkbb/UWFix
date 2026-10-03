@@ -6,7 +6,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 /**
- * Виконуваний файл гри (.exe або .dll), у якому може бути число 16:9.
+ * Виконуваний файл гри (.exe, .dll або файл ELF у Linux), у якому може бути число 16:9.
  *
  * @param file        повний шлях
  * @param relative    шлях відносно папки гри — для показу
@@ -30,8 +30,9 @@ public record BinaryCandidate(Path file, Path relative, long size, String sha256
         return file.getFileName().toString();
     }
 
-    public boolean isExe() {
-        return fileName().toLowerCase(java.util.Locale.ROOT).endsWith(".exe");
+    /** Програма (.exe або ELF), а не бібліотека (.dll, .so). */
+    public boolean isProgram() {
+        return !BinaryFormat.isLibraryName(fileName());
     }
 
     BinaryCandidate withRecommended(boolean value) {

@@ -49,6 +49,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import ua.uwfix.App;
 import ua.uwfix.analysis.BinaryCandidate;
+import ua.uwfix.analysis.BinaryFormat;
 import ua.uwfix.analysis.GameAnalysis;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.model.Game;
@@ -884,7 +885,7 @@ public final class MainController {
             return;
         }
         for (FileRow row : selected) {
-            if (row.candidate().isExe() && SystemShell.isRunning(row.candidate().file())) {
+            if (row.candidate().isProgram() && SystemShell.isRunning(row.candidate().file())) {
                 Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.running.text", row.candidate().fileName()));
                 return;
             }
@@ -924,7 +925,7 @@ public final class MainController {
             return;
         }
         for (Path f : files) {
-            if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && SystemShell.isRunning(f)) {
+            if (!BinaryFormat.isLibraryName(f.getFileName().toString()) && SystemShell.isRunning(f)) {
                 Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.runningShort.text", f.getFileName().toString()));
                 return;
             }
@@ -958,7 +959,7 @@ public final class MainController {
         }
         for (PatchRecord r : outdated) {
             Path f = Path.of(r.file());
-            if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && SystemShell.isRunning(f)) {
+            if (!BinaryFormat.isLibraryName(f.getFileName().toString()) && SystemShell.isRunning(f)) {
                 Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.runningShort.text", r.gameName()));
                 return;
             }

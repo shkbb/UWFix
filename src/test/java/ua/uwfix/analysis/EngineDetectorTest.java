@@ -35,7 +35,18 @@ class EngineDetectorTest {
             "FROSTBITE,     Data/initfs_Win32",
             "GAMEMAKER,     data.win|DELTARUNE.exe",
             "GODOT,         Brotato.pck|Brotato.exe",
-            "UNKNOWN,       game.exe"
+            "UNKNOWN,       game.exe",
+            // Нативні версії для Linux
+            "UNITY_MONO,    UnityPlayer.so|Valheim.x86_64",
+            "UNITY_IL2CPP,  UnityPlayer.so|GameAssembly.so|Game.x86_64",
+            "UNITY_MONO,    OldGame_Data/mainData|OldGame.x86_64",
+            "UNITY_IL2CPP,  Game_Data/globalgamemanagers|Game_Data/il2cpp_data/|Game.exe",
+            "SOURCE_2,      game/bin/linuxsteamrt64/libengine2.so|game/bin/linuxsteamrt64/cs2",
+            "SOURCE,        bin/engine.so|hl2_linux|hl2/gameinfo.txt",
+            "SOURCE,        bin/linux64/engine_client.so|portal2_linux",
+            "UNREAL_4_5,    Game/Binaries/Linux/Game-Linux-Shipping|Game.sh",
+            "GAMEMAKER,     assets/game.unx|runner",
+            "GODOT,         Brotato.pck|Brotato.x86_64"
     })
     void detectsEngineByItsFiles(Engine expected, String layout) throws IOException {
         for (String entry : layout.split("\\|")) {

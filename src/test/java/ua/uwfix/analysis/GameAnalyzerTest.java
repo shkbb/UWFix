@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -99,6 +100,43 @@ class GameAnalyzerTest {
     }
 
     @Test
+    void nativeLinuxUnityGame() throws IOException {
+        elf("Game.x86_64", 200_000, 1);
+        elf("UnityPlayer.so", 900_000, 4);
+        elf("GameAssembly.so", 700_000, 6);
+        elf("libsteam_api.so", 300_000, 2);                 // стороння бібліотека
+        elf("lib/x86_64/libSDL2-2.0.so.0", 300_000, 2);     // і ця теж
+        binary("Game_Data/resources", 400_000, 3);          // не ELF — файл даних без розширення
+
+        GameAnalysis analysis = analyze();
+
+        assertEquals(Engine.UNITY_IL2CPP, analysis.engine());
+        assertEquals(List.of("GameAssembly.so", "Game.x86_64"),
+                analysis.recommended().stream().map(BinaryCandidate::fileName).toList());
+        assertEquals(List.of("GameAssembly.so", "Game.x86_64", "UnityPlayer.so"),
+                analysis.candidates().stream().map(BinaryCandidate::fileName).toList());
+        assertEquals(Optional.of(BinaryFormat.ELF), GameAnalyzer.mainProgramFormat(dir));
+    }
+
+    @Test
+    void nativeLinuxProgramWithoutExtension() throws IOException {
+        elf("bin/ShadowOfTheTombRaider", 900_000, 3);
+        elf("bin/crashpad_handler", 500_000, 1);
+        GameAnalysis analysis = analyze();
+        assertEquals(List.of("ShadowOfTheTombRaider"),
+                analysis.recommended().stream().map(BinaryCandidate::fileName).toList());
+        assertTrue(analysis.recommended().get(0).isProgram());
+    }
+
+    @Test
+    void mainProgramFormatTellsWindowsBuildFromNative() throws IOException {
+        assertEquals(Optional.empty(), GameAnalyzer.mainProgramFormat(dir));
+        binary("Game.exe", 300_000, 0);
+        elf("tools/helper_linux", 100_000, 0);
+        assertEquals(Optional.of(BinaryFormat.PE), GameAnalyzer.mainProgramFormat(dir));
+    }
+
+    @Test
     void fileFilters() {
         assertTrue(GameAnalyzer.isInteresting("witcher3.exe"));
         assertTrue(GameAnalyzer.isInteresting("GameAssembly.dll"));
@@ -107,6 +145,28 @@ class GameAnalyzerTest {
         assertFalse(GameAnalyzer.isInteresting("dxgi.dll"));
         assertTrue(GameAnalyzer.isAuxiliary("REDprelauncher.exe"));
         assertFalse(GameAnalyzer.isAuxiliary("witcher3.exe"));
+        // Linux
+        assertTrue(GameAnalyzer.isInteresting("portal2_linux"));
+        assertTrue(GameAnalyzer.isInteresting("valheim.x86_64"));
+        assertTrue(GameAnalyzer.isInteresting("GameAssembly.so"));
+        assertFalse(GameAnalyzer.isInteresting("libsteam_api.so"));
+        assertFalse(GameAnalyzer.isInteresting("libGL.so.1"));
+        assertFalse(GameAnalyzer.isInteresting("libfmod.so.13"));
+        assertFalse(GameAnalyzer.isInteresting("start.sh"));
+        assertTrue(GameAnalyzer.isInteresting("Glitchspace.exe"), "префікси бібліотек Linux не чіпають ігри Windows");
+    }
+
+    @Test
+    void binaryFormatByMagicBytes() {
+        assertEquals(BinaryFormat.ELF, BinaryFormat.of(new byte[]{0x7F, 'E', 'L', 'F'}, 4));
+        assertEquals(BinaryFormat.PE, BinaryFormat.of(new byte[]{'M', 'Z', (byte) 0x90, 0}, 4));
+        assertEquals(BinaryFormat.OTHER, BinaryFormat.of(new byte[]{'#', '!', '/', 'b'}, 4));
+        assertEquals(BinaryFormat.OTHER, BinaryFormat.of(new byte[0], 0));
+        assertTrue(BinaryFormat.isSharedObjectName("libSDL2-2.0.so.0"));
+        assertFalse(BinaryFormat.isSharedObjectName("Game.x86_64"));
+        assertTrue(BinaryFormat.isLibraryName("UnityPlayer.so"));
+        assertTrue(BinaryFormat.mayBeElfProgramName("Game-Linux-Shipping"));
+        assertFalse(BinaryFormat.mayBeElfProgramName("level0.assets"));
     }
 
     // ------------------------------------------------------------------
@@ -117,6 +177,15 @@ class GameAnalyzerTest {
 
     private Game game() {
         return new Game(GameSource.MANUAL, "test", "Test Game", dir);
+    }
+
+    /** Те саме, але з заголовком ELF — як програма чи бібліотека Linux. */
+    private Path elf(String relative, int size, int matches) throws IOException {
+        Path file = binary(relative, size, matches);
+        try (var channel = java.nio.channels.FileChannel.open(file, java.nio.file.StandardOpenOption.WRITE)) {
+            channel.write(java.nio.ByteBuffer.wrap(new byte[]{0x7F, 'E', 'L', 'F', 2, 1, 1}), 0);
+        }
+        return file;
     }
 
     /** Створює файл заданого розміру з {@code matches} входженнями 16:9. */

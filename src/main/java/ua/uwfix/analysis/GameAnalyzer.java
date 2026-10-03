@@ -22,11 +22,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
- * Аналізує папку гри: знаходить .exe і .dll, рахує в них входження 16:9
- * та обирає файли, які варто патчити.
+ * Аналізує папку гри: знаходить виконувані файли (.exe і .dll у Windows, програми ELF і .so у Linux),
+ * рахує в них входження 16:9 та обирає файли, які варто патчити.
  */
 public final class GameAnalyzer {
 
@@ -40,7 +41,8 @@ public final class GameAnalyzer {
             "__installer", "installer", "installers", "prerequisites", "prereqs",
             "directx", "dxsetup", "vcredist", "dotnet", "support",
             "easyanticheat", "easyanticheat_eos", "battleye",
-            "crashreporter", "crashpad", "monobleedingedge", "thirdparty", "extras");
+            "crashreporter", "crashpad", "monobleedingedge", "thirdparty", "extras",
+            "steam-runtime", "steamlinuxruntime");
 
     /** Початки назв сторонніх бібліотек (графіка, звук, Steam, рантайми), які не містять логіки гри. */
     private static final List<String> SKIP_FILE_PREFIXES = List.of(
@@ -56,6 +58,19 @@ public final class GameAnalyzer {
             "mono-2.0", "system.", "mono.", "unityengine", "unity.", "microsoft.", "newtonsoft",
             "mscorlib", "netstandard", "easyanticheat", "beservice");
 
+    /**
+     * Системні та сторонні бібліотеки Linux, які ігри кладуть поруч із собою (назви без «lib»:
+     * libSDL2-2.0.so.0 → sdl2-2.0.so.0). Перевіряються лише для .so — щоб не відкинути гру
+     * на кшталт «Glitch.exe» через префікс «gl».
+     */
+    private static final List<String> SKIP_LINUX_LIBRARIES = List.of(
+            "stdc++", "gcc_s", "c++", "z.", "png", "jpeg", "turbojpeg", "freetype", "fontconfig", "harfbuzz",
+            "curl", "ssl", "crypto", "icu", "vulkan", "gl.", "glx", "glew", "glfw", "egl", "openvr", "steam",
+            "sdl", "ogg", "vorbis", "opus", "theora", "vpx", "avcodec", "avformat", "avutil", "swscale",
+            "swresample", "python", "lua", "x11", "xcb", "xrandr", "xi.", "xinerama", "xcursor", "xext",
+            "wayland", "pulse", "asound", "udev", "dbus", "bz2", "lzma", "zstd", "breakpad", "monobdwgc",
+            "mono", "dxvk", "vkd3d", "mimalloc", "jemalloc", "tcmalloc", "unwind", "atomic", "gomp");
+
     /** Проксі-бібліотеки модів (ReShade, ASI Loader) — це не файли гри. */
     private static final Set<String> SKIP_FILE_NAMES = Set.of(
             "dxgi.dll", "d3d11.dll", "d3d9.dll", "winmm.dll", "version.dll", "dsound.dll", "dinput8.dll");
@@ -63,7 +78,7 @@ public final class GameAnalyzer {
     /** Частини назв допоміжних програм (лаунчери, утиліти), які не варто рекомендувати. */
     private static final List<String> AUXILIARY_MARKERS = List.of(
             "launcher", "crash", "report", "setup", "install", "helper", "update", "uploader",
-            "config", "server", "editor", "benchmark", "tool", "handler", "compiler");
+            "config", "server", "editor", "benchmark", "tool", "handler", "compiler", "sandbox");
 
     private final FileScanner scanner;
 
@@ -147,7 +162,10 @@ public final class GameAnalyzer {
         return new GameAnalysis(game, engine, AntiCheatDetector.detect(game), withRecommendation, files.size());
     }
 
-    /** Усі .exe та .dll гри, крім сторонніх бібліотек і службових папок. */
+    /**
+     * Усі виконувані файли гри, крім сторонніх бібліотек і службових папок. Файли Windows видно
+     * за розширенням, а файли Linux додатково перевіряються за першими байтами (див. {@link BinaryFormat}).
+     */
     static List<Path> findBinaries(Path root) throws IOException {
         List<Path> result = new ArrayList<>();
         Files.walkFileTree(root, EnumSet.noneOf(java.nio.file.FileVisitOption.class), MAX_DEPTH,
@@ -165,8 +183,10 @@ public final class GameAnalyzer {
 
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                        String name = file.getFileName().toString();
                         if (attrs.isRegularFile() && attrs.size() >= MIN_SIZE && attrs.size() <= MAX_SIZE
-                                && isInteresting(file.getFileName().toString())) {
+                                && isInteresting(name)
+                                && (BinaryFormat.isWindowsName(name) || BinaryFormat.of(file) == BinaryFormat.ELF)) {
                             result.add(file);
                         }
                         return FileVisitResult.CONTINUE;
@@ -180,20 +200,59 @@ public final class GameAnalyzer {
         return result;
     }
 
+    /**
+     * Чи варто дивитися на файл з такою назвою: .exe, .dll, .so або програма Linux,
+     * і не стороння бібліотека.
+     */
     public static boolean isInteresting(String fileName) {
         String name = fileName.toLowerCase(Locale.ROOT);
-        if (!name.endsWith(".exe") && !name.endsWith(".dll")) {
+        boolean sharedObject = BinaryFormat.isSharedObjectName(name);
+        if (!BinaryFormat.isWindowsName(name) && !sharedObject && !BinaryFormat.mayBeElfProgramName(name)) {
             return false;
         }
         if (SKIP_FILE_NAMES.contains(name)) {
             return false;
         }
+        // «libsteam_api.so» перевіряємо як «steam_api.so»
+        String base = sharedObject && name.startsWith("lib") ? name.substring(3) : name;
         for (String prefix : SKIP_FILE_PREFIXES) {
-            if (name.startsWith(prefix)) {
+            if (base.startsWith(prefix)) {
                 return false;
             }
         }
+        if (sharedObject) {
+            for (String prefix : SKIP_LINUX_LIBRARIES) {
+                if (base.startsWith(prefix)) {
+                    return false;
+                }
+            }
+        }
         return true;
+    }
+
+    /**
+     * Формат головної програми гри: PE — версія для Windows (у Linux вона працює через Proton/Wine),
+     * ELF — нативна версія для Linux. Якщо програм немає (у Unity для Linux сама програма крихітна),
+     * вирішує найбільша бібліотека.
+     */
+    public static Optional<BinaryFormat> mainProgramFormat(Path installDir) {
+        try {
+            return findBinaries(installDir).stream()
+                    .filter(p -> !isAuxiliary(p.getFileName().toString()))
+                    .max(Comparator.comparing((Path p) -> !BinaryFormat.isLibraryName(p.getFileName().toString()))
+                            .thenComparingLong(GameAnalyzer::sizeOf))
+                    .map(p -> BinaryFormat.isWindowsName(p.getFileName().toString()) ? BinaryFormat.PE : BinaryFormat.ELF);
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static long sizeOf(Path p) {
+        try {
+            return Files.size(p);
+        } catch (IOException e) {
+            return -1;
+        }
     }
 
     public static boolean isAuxiliary(String fileName) {
@@ -209,9 +268,9 @@ public final class GameAnalyzer {
     /**
      * Обирає файли для патчингу:
      * <ol>
-     *   <li>головний .exe — найбільший не допоміжний .exe, у якому знайдено 16:9;
-     *       також усі .exe з такою самою назвою (наприклад, версії для DX11 і DX12);</li>
-     *   <li>для Unity — бібліотеки з кодом гри (GameAssembly.dll, Assembly-CSharp.dll);</li>
+     *   <li>головна програма — найбільша не допоміжна програма (.exe або ELF), у якій знайдено 16:9;
+     *       також усі програми з такою самою назвою (наприклад, версії для DX11 і DX12);</li>
+     *   <li>для Unity — бібліотеки з кодом гри (GameAssembly.dll / .so, Assembly-CSharp.dll);</li>
      *   <li>якщо нічого не обрано — найбільший файл із збігами.</li>
      * </ol>
      * Файли, які вже змінені програмою, лишаються рекомендованими.
@@ -224,13 +283,13 @@ public final class GameAnalyzer {
             }
         }
 
-        BinaryCandidate mainExe = candidates.stream()
-                .filter(c -> c.isExe() && c.totalMatches() > 0 && !isAuxiliary(c.fileName()))
+        BinaryCandidate mainProgram = candidates.stream()
+                .filter(c -> c.isProgram() && c.totalMatches() > 0 && !isAuxiliary(c.fileName()))
                 .max(Comparator.comparingLong(BinaryCandidate::size))
                 .orElse(null);
-        if (mainExe != null) {
+        if (mainProgram != null) {
             for (BinaryCandidate c : candidates) {
-                if (c.isExe() && c.totalMatches() > 0 && c.fileName().equalsIgnoreCase(mainExe.fileName())) {
+                if (c.isProgram() && c.totalMatches() > 0 && c.fileName().equalsIgnoreCase(mainProgram.fileName())) {
                     chosen.add(c.file());
                 }
             }
@@ -239,7 +298,8 @@ public final class GameAnalyzer {
         if (engine == Engine.UNITY_IL2CPP || engine == Engine.UNITY_MONO) {
             for (BinaryCandidate c : candidates) {
                 String name = c.fileName().toLowerCase(Locale.ROOT);
-                if (c.totalMatches() > 0 && (name.equals("gameassembly.dll") || name.equals("assembly-csharp.dll"))) {
+                if (c.totalMatches() > 0 && (name.equals("gameassembly.dll") || name.equals("gameassembly.so")
+                        || name.equals("assembly-csharp.dll"))) {
                     chosen.add(c.file());
                 }
             }
