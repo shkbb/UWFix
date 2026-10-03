@@ -1,0 +1,582 @@
+/* =========================================================
+   UWFix — темна тема.
+   Кольори задано «іменованими» (looked-up) змінними в .root,
+   стандартна тема Modena сама підлаштовує під них елементи.
+   ========================================================= */
+
+.root, .uw-dialog {
+    -uw-bg: #121419;
+    -uw-sidebar: #171a20;
+    -uw-surface: #1d2129;
+    -uw-surface-2: #242934;
+    -uw-border: #2c323d;
+    -uw-text: #e7e9ee;
+    -uw-muted: #8e96a4;
+    -uw-accent: #f2a93b;
+    -uw-accent-hover: #f7bb5c;
+    -uw-on-accent: #1d1405;
+    -uw-ok: #4cc38a;
+    -uw-warn: #f2a93b;
+    -uw-danger: #f0616d;
+
+    -fx-base: #232833;
+    -fx-background: -uw-bg;
+    -fx-control-inner-background: -uw-sidebar;
+    -fx-control-inner-background-alt: #1a1d24;
+    -fx-accent: #3b4352;
+    -fx-focus-color: -uw-accent;
+    -fx-faint-focus-color: transparent;
+    -fx-text-base-color: -uw-text;
+    -fx-text-background-color: -uw-text;
+    -fx-selection-bar: #2e3542;
+    -fx-selection-bar-non-focused: #2a303b;
+    -fx-font-family: "Segoe UI", "Segoe UI Variable", sans-serif;
+    -fx-font-size: 13px;
+}
+
+.root-pane {
+    -fx-background-color: -uw-bg;
+}
+
+.label {
+    -fx-text-fill: -uw-text;
+}
+
+/* ---------- Шапка ---------- */
+
+.header {
+    -fx-background-color: linear-gradient(to right, #1a1e26, #151820);
+    -fx-padding: 14 20 14 20;
+    -fx-border-color: transparent transparent -uw-border transparent;
+}
+
+.logo {
+    -fx-background-color: -uw-accent;
+    -fx-background-radius: 10;
+    -fx-min-width: 42;
+    -fx-min-height: 42;
+    -fx-max-width: 42;
+    -fx-max-height: 42;
+}
+
+.logo-text {
+    -fx-text-fill: -uw-on-accent;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+}
+
+.app-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.app-subtitle {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 12px;
+}
+
+.caption {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 10.5px;
+    -fx-font-weight: bold;
+}
+
+/* ---------- Кнопки ---------- */
+
+.button {
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-padding: 7 14 7 14;
+}
+
+.accent-button {
+    -fx-background-color: -uw-accent;
+    -fx-text-fill: -uw-on-accent;
+    -fx-font-weight: bold;
+}
+
+.accent-button:hover {
+    -fx-background-color: -uw-accent-hover;
+}
+
+.accent-button:pressed {
+    -fx-background-color: derive(-uw-accent, -12%);
+}
+
+.secondary-button {
+    -fx-background-color: -uw-surface-2;
+    -fx-border-color: -uw-border;
+    -fx-border-radius: 8;
+    -fx-text-fill: -uw-text;
+}
+
+.secondary-button:hover {
+    -fx-background-color: derive(-uw-surface-2, 12%);
+}
+
+.icon-button {
+    -fx-background-color: -uw-surface-2;
+    -fx-border-color: -uw-border;
+    -fx-border-radius: 8;
+    -fx-text-fill: -uw-text;
+    -fx-font-size: 15px;
+    -fx-padding: 4 12 4 12;
+}
+
+.icon-button:hover {
+    -fx-background-color: derive(-uw-surface-2, 12%);
+}
+
+.big-button {
+    -fx-font-size: 14px;
+    -fx-padding: 10 22 10 22;
+}
+
+.button:disabled {
+    -fx-opacity: 0.45;
+}
+
+/* ---------- Список ігор ---------- */
+
+.sidebar {
+    -fx-background-color: -uw-sidebar;
+    -fx-padding: 14;
+    -fx-border-color: transparent -uw-border transparent transparent;
+}
+
+.search-field, .text-field {
+    -fx-background-color: -uw-surface;
+    -fx-background-radius: 8;
+    -fx-border-color: -uw-border;
+    -fx-border-radius: 8;
+    -fx-text-fill: -uw-text;
+    -fx-prompt-text-fill: -uw-muted;
+    -fx-padding: 7 10 7 10;
+}
+
+.search-field:focused, .text-field:focused {
+    -fx-border-color: -uw-accent;
+}
+
+.game-list {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.game-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 9 10 9 12;
+    -fx-background-radius: 8;
+}
+
+.game-list .list-cell:filled:hover {
+    -fx-background-color: -uw-surface;
+}
+
+.game-list .list-cell:filled:selected {
+    -fx-background-color: -uw-surface-2;
+    -fx-border-color: transparent transparent transparent -uw-accent;
+    -fx-border-width: 0 0 0 3;
+}
+
+.game-name {
+    -fx-font-size: 13.5px;
+    -fx-font-weight: bold;
+    -fx-text-overrun: ellipsis;
+}
+
+.game-source {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 11.5px;
+}
+
+/* ---------- Позначки ---------- */
+
+.badge {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 2 8 2 8;
+    -fx-background-radius: 10;
+}
+
+.badge-ok {
+    -fx-text-fill: -uw-ok;
+    -fx-background-color: rgba(76, 195, 138, 0.14);
+}
+
+.badge-warn {
+    -fx-text-fill: -uw-warn;
+    -fx-background-color: rgba(242, 169, 59, 0.15);
+}
+
+.badge-accent {
+    -fx-text-fill: -uw-accent;
+    -fx-background-color: rgba(242, 169, 59, 0.10);
+}
+
+.badge-muted {
+    -fx-text-fill: -uw-muted;
+    -fx-background-color: rgba(142, 150, 164, 0.12);
+}
+
+.chip, .chip-danger {
+    -fx-font-size: 11.5px;
+    -fx-padding: 4 10 4 10;
+    -fx-background-radius: 12;
+    -fx-background-color: -uw-surface-2;
+    -fx-text-fill: -uw-text;
+}
+
+.chip-danger {
+    -fx-text-fill: -uw-danger;
+    -fx-background-color: rgba(240, 97, 109, 0.14);
+    -fx-font-weight: bold;
+}
+
+/* ---------- Основна частина ---------- */
+
+.content {
+    -fx-padding: 18 22 14 22;
+}
+
+.placeholder-icon {
+    -fx-font-size: 54px;
+    -fx-text-fill: -uw-accent;
+}
+
+.placeholder-title {
+    -fx-font-size: 19px;
+    -fx-font-weight: bold;
+}
+
+.placeholder-text {
+    -fx-text-fill: -uw-muted;
+    -fx-text-alignment: center;
+}
+
+.game-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+.path-link {
+    -fx-text-fill: -uw-muted;
+    -fx-padding: 0;
+    -fx-border-width: 0;
+    -fx-font-size: 12px;
+}
+
+.path-link:hover {
+    -fx-text-fill: -uw-accent;
+    -fx-underline: true;
+}
+
+.status-card {
+    -fx-background-color: -uw-surface;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-border-color: -uw-border;
+    -fx-border-width: 1 1 1 4;
+    -fx-padding: 14 18 14 14;
+}
+
+.status-icon {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-min-height: 44;
+    -fx-background-radius: 22;
+}
+
+.status-title {
+    -fx-font-size: 15.5px;
+    -fx-font-weight: bold;
+}
+
+.status-text {
+    -fx-text-fill: -uw-muted;
+}
+
+.status-ok {
+    -fx-border-color: -uw-border -uw-border -uw-border -uw-ok;
+}
+
+.status-ok .status-icon {
+    -fx-text-fill: -uw-ok;
+    -fx-background-color: rgba(76, 195, 138, 0.14);
+}
+
+.status-warn {
+    -fx-border-color: -uw-border -uw-border -uw-border -uw-warn;
+}
+
+.status-warn .status-icon {
+    -fx-text-fill: -uw-warn;
+    -fx-background-color: rgba(242, 169, 59, 0.15);
+}
+
+.status-idle {
+    -fx-border-color: -uw-border -uw-border -uw-border #4a5363;
+}
+
+.status-idle .status-icon {
+    -fx-text-fill: -uw-muted;
+    -fx-background-color: rgba(142, 150, 164, 0.12);
+}
+
+.status-error {
+    -fx-border-color: -uw-border -uw-border -uw-border -uw-danger;
+}
+
+.status-error .status-icon {
+    -fx-text-fill: -uw-danger;
+    -fx-background-color: rgba(240, 97, 109, 0.14);
+}
+
+.hint {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 12px;
+}
+
+/* ---------- Банер ---------- */
+
+.banner {
+    -fx-background-color: rgba(242, 169, 59, 0.10);
+    -fx-border-color: rgba(242, 169, 59, 0.45);
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 10 12 10 16;
+}
+
+.banner-icon {
+    -fx-text-fill: -uw-warn;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* ---------- Таблиця файлів ---------- */
+
+.file-table {
+    -fx-background-color: -uw-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -uw-border;
+    -fx-border-radius: 10;
+    -fx-padding: 2;
+}
+
+.file-table .column-header-background {
+    -fx-background-color: transparent;
+    -fx-background-radius: 10 10 0 0;
+}
+
+.file-table .column-header, .file-table .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -uw-border transparent;
+    -fx-size: 32;
+}
+
+.file-table .column-header .label {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+}
+
+.file-table .table-row-cell {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent rgba(255, 255, 255, 0.04) transparent;
+    -fx-cell-size: 34;
+}
+
+.file-table .table-row-cell:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+}
+
+.file-table .table-row-cell:selected {
+    -fx-background-color: rgba(242, 169, 59, 0.08);
+}
+
+.file-table .table-cell {
+    -fx-text-fill: -uw-text;
+    -fx-border-color: transparent;
+    -fx-alignment: CENTER-LEFT;
+    -fx-padding: 0 8 0 8;
+}
+
+.file-table .placeholder .label {
+    -fx-text-fill: -uw-muted;
+}
+
+/* ---------- Прапорці ---------- */
+
+.check-box {
+    -fx-text-fill: -uw-text;
+}
+
+.check-box .box {
+    -fx-background-color: -uw-surface-2;
+    -fx-border-color: #4a5363;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.check-box:selected .box {
+    -fx-background-color: -uw-accent;
+    -fx-border-color: -uw-accent;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: -uw-on-accent;
+}
+
+.autostart-check {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 12px;
+    -fx-padding: 4 2 2 2;
+}
+
+/* ---------- Список співвідношень ---------- */
+
+.combo-box {
+    -fx-background-color: -uw-surface;
+    -fx-border-color: -uw-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.combo-box:focused {
+    -fx-border-color: -uw-accent;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -uw-text;
+    -fx-background-color: transparent;
+    -fx-padding: 5 8 5 8;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -uw-surface;
+    -fx-border-color: -uw-border;
+}
+
+.combo-box-popup .list-cell {
+    -fx-background-color: -uw-surface;
+    -fx-padding: 7 10 7 10;
+}
+
+.combo-box-popup .list-cell:hover, .combo-box-popup .list-cell:selected {
+    -fx-background-color: -uw-surface-2;
+}
+
+/* ---------- Прогрес ---------- */
+
+.progress-bar > .bar {
+    -fx-background-color: -uw-accent;
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+    -fx-padding: 0.4em;
+}
+
+.progress-bar > .track {
+    -fx-background-color: -uw-surface-2;
+    -fx-background-radius: 4;
+    -fx-background-insets: 0;
+}
+
+.progress-label {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 11.5px;
+    -fx-text-overrun: leading-ellipsis;
+}
+
+/* ---------- Журнал ---------- */
+
+.log-pane > .title {
+    -fx-background-color: transparent;
+    -fx-padding: 4 0 4 0;
+}
+
+.log-pane > .title > .text {
+    -fx-fill: -uw-muted;
+}
+
+.log-pane > .content {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 4 0 0 0;
+}
+
+.log-area, .log-area .content {
+    -fx-background-color: -uw-sidebar;
+    -fx-font-family: "Consolas", monospace;
+    -fx-font-size: 12px;
+    -fx-text-fill: #b8bfcc;
+    -fx-background-radius: 8;
+}
+
+/* ---------- Рядок стану ---------- */
+
+.status-bar {
+    -fx-background-color: #0f1115;
+    -fx-padding: 6 20 6 20;
+    -fx-border-color: -uw-border transparent transparent transparent;
+}
+
+.status-bar .label {
+    -fx-text-fill: -uw-muted;
+    -fx-font-size: 11.5px;
+}
+
+/* ---------- Смуги прокрутки ---------- */
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #343b48;
+    -fx-background-radius: 6;
+}
+
+.scroll-bar .increment-button, .scroll-bar .decrement-button {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .increment-arrow, .scroll-bar .decrement-arrow {
+    -fx-padding: 0;
+    -fx-shape: " ";
+}
+
+/* ---------- Діалоги ---------- */
+
+.uw-dialog {
+    -fx-background-color: -uw-surface;
+}
+
+.uw-dialog > .header-panel {
+    -fx-background-color: -uw-surface-2;
+}
+
+.uw-dialog > .header-panel .label {
+    -fx-font-size: 14.5px;
+    -fx-font-weight: bold;
+}
+
+.uw-dialog .content.label {
+    -fx-text-fill: -uw-text;
+    -fx-padding: 14 16 10 16;
+}
+
+/* ---------- Підказки ---------- */
+
+.tooltip {
+    -fx-background-color: #2a303b;
+    -fx-text-fill: -uw-text;
+    -fx-font-size: 12px;
+    -fx-background-radius: 6;
+}
+
+.context-menu {
+    -fx-background-color: -uw-surface;
+    -fx-border-color: -uw-border;
+}

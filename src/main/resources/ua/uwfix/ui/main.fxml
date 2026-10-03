@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- Головне вікно UWFix. Логіка — у ua.uwfix.ui.MainController -->
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            styleClass="root-pane">
+
+    <!-- ===================== Шапка ===================== -->
+    <top>
+        <HBox styleClass="header" alignment="CENTER_LEFT" spacing="14">
+            <StackPane styleClass="logo">
+                <Label text="UW" styleClass="logo-text"/>
+            </StackPane>
+            <VBox spacing="1" alignment="CENTER_LEFT">
+                <Label text="UWFix" styleClass="app-title"/>
+                <Label text="Катсцени на весь ультраширокий екран — без чорних смуг" styleClass="app-subtitle"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <VBox spacing="5" alignment="CENTER_LEFT">
+                <Label text="ЦІЛЬОВА РОЗДІЛЬНА ЗДАТНІСТЬ" styleClass="caption"/>
+                <ComboBox fx:id="ratioCombo" prefWidth="310" styleClass="ratio-combo"/>
+            </VBox>
+        </HBox>
+    </top>
+
+    <!-- ===================== Список ігор ===================== -->
+    <left>
+        <VBox styleClass="sidebar" spacing="10" prefWidth="320" minWidth="260">
+            <TextField fx:id="searchField" promptText="Пошук гри…" styleClass="search-field"/>
+            <ListView fx:id="gameList" VBox.vgrow="ALWAYS" styleClass="game-list"/>
+            <CheckBox fx:id="autostartCheck" text="Після оновлень ігор застосовувати фікс автоматично (при вході у Windows)"
+                      wrapText="true" styleClass="autostart-check"/>
+            <HBox spacing="8">
+                <Button fx:id="addGameButton" text="＋ Додати вручну" onAction="#onAddGame"
+                        HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="secondary-button"/>
+                <Button fx:id="refreshButton" text="⟳" onAction="#onRefresh" styleClass="icon-button"/>
+            </HBox>
+        </VBox>
+    </left>
+
+    <!-- ===================== Деталі гри ===================== -->
+    <center>
+        <VBox styleClass="content" spacing="12">
+            <HBox fx:id="outdatedBanner" styleClass="banner" alignment="CENTER_LEFT" spacing="12" visible="false">
+                <Label text="⟳" styleClass="banner-icon"/>
+                <Label fx:id="outdatedLabel" styleClass="banner-text" wrapText="true" HBox.hgrow="ALWAYS"
+                       maxWidth="Infinity"/>
+                <Button fx:id="reapplyAllButton" text="Застосувати знову" onAction="#onReapplyAll"
+                        styleClass="accent-button"/>
+            </HBox>
+
+            <StackPane VBox.vgrow="ALWAYS">
+                <VBox fx:id="placeholder" styleClass="placeholder" alignment="CENTER" spacing="10">
+                    <Label text="⟷" styleClass="placeholder-icon"/>
+                    <Label fx:id="placeholderTitle" styleClass="placeholder-title"/>
+                    <Label fx:id="placeholderText" styleClass="placeholder-text" wrapText="true" maxWidth="460"/>
+                </VBox>
+
+                <VBox fx:id="detailsPane" spacing="12" visible="false">
+                    <VBox spacing="2">
+                        <Label fx:id="gameTitle" styleClass="game-title" wrapText="true"/>
+                        <Hyperlink fx:id="gamePath" onAction="#onOpenFolder" styleClass="path-link"/>
+                    </VBox>
+                    <FlowPane fx:id="chips" hgap="8" vgap="6"/>
+
+                    <HBox fx:id="statusCard" styleClass="status-card, status-idle" spacing="14" alignment="CENTER_LEFT">
+                        <Label fx:id="statusIcon" styleClass="status-icon" minWidth="44" alignment="CENTER"/>
+                        <VBox spacing="3" HBox.hgrow="ALWAYS">
+                            <Label fx:id="statusTitle" styleClass="status-title"/>
+                            <Label fx:id="statusText" styleClass="status-text" wrapText="true"/>
+                        </VBox>
+                    </HBox>
+
+                    <Label fx:id="engineHint" styleClass="hint" wrapText="true"/>
+
+                    <Label text="ФАЙЛИ ГРИ" styleClass="caption"/>
+                    <TableView fx:id="fileTable" VBox.vgrow="ALWAYS" styleClass="file-table" minHeight="140"/>
+
+                    <CheckBox fx:id="doubleCheck" text="Також замінювати 16:9 у форматі double (8 байтів)"/>
+
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <Button fx:id="fixButton" text="Виправити катсцени" onAction="#onFix"
+                                styleClass="accent-button, big-button"/>
+                        <Button fx:id="restoreButton" text="Відновити оригінал" onAction="#onRestore"
+                                styleClass="secondary-button, big-button"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <VBox fx:id="progressBox" spacing="4" alignment="CENTER_RIGHT">
+                            <Label fx:id="progressLabel" styleClass="progress-label" maxWidth="320"/>
+                            <ProgressBar fx:id="progressBar" prefWidth="320"/>
+                        </VBox>
+                    </HBox>
+                </VBox>
+            </StackPane>
+
+            <TitledPane fx:id="logPane" text="Журнал" expanded="false" styleClass="log-pane">
+                <TextArea fx:id="logArea" editable="false" wrapText="true" prefRowCount="7" styleClass="log-area"/>
+            </TitledPane>
+        </VBox>
+    </center>
+
+    <!-- ===================== Рядок стану ===================== -->
+    <bottom>
+        <HBox styleClass="status-bar" spacing="20" alignment="CENTER_LEFT">
+            <Label fx:id="gamesCountLabel"/>
+            <Label fx:id="monitorLabel"/>
+            <Label fx:id="adminLabel"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="versionLabel"/>
+        </HBox>
+    </bottom>
+</BorderPane>

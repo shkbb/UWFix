@@ -1,0 +1,93 @@
+package ua.uwfix.system;
+
+import ua.uwfix.scan.WindowsRegistry;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Автозапуск перевірки при вході у Windows.
+ * <p>
+ * Записує команду {@code "UWFix.exe" --reapply} у розділ реєстру
+ * {@code HKCU\Software\Microsoft\Windows\CurrentVersion\Run} (права адміністратора не потрібні).
+ * При вході в систему програма тихо перевіряє, чи не оновились ігри, і за потреби
+ * застосовує фікс знову.
+ */
+public final class Autostart {
+
+    private static final String RUN_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    private static final String VALUE_NAME = "UWFix";
+    public static final String REAPPLY_ARG = "--reapply";
+
+    private Autostart() {
+    }
+
+    public static boolean isEnabled() {
+        return WindowsRegistry.readValues(RUN_KEY).containsKey(VALUE_NAME);
+    }
+
+    /** @return {@code true}, якщо вдалося записати в реєстр */
+    public static boolean enable() {
+        Optional<String> command = currentLaunchCommand();
+        if (command.isEmpty()) {
+            return false;
+        }
+        // Значення містить лапки, тому пишемо через PowerShell (див. WindowsShell.powershell)
+        return WindowsShell.powershell("Set-ItemProperty -Path " + WindowsShell.psQuote(PS_RUN_PATH)
+                + " -Name " + WindowsShell.psQuote(VALUE_NAME)
+                + " -Value " + WindowsShell.psQuote(command.get()));
+    }
+
+    public static boolean disable() {
+        return run("reg", "delete", RUN_KEY, "/v", VALUE_NAME, "/f");
+    }
+
+    private static final String PS_RUN_PATH = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+
+    /**
+     * Команда запуску поточної програми з аргументом {@code --reapply}.
+     * Для встановленої програми це «UWFix.exe», під час розробки — java з усіма аргументами JVM.
+     */
+    static Optional<String> currentLaunchCommand() {
+        ProcessHandle.Info info = ProcessHandle.current().info();
+        if (info.command().isEmpty()) {
+            return Optional.empty();
+        }
+        String exe = info.command().get();
+        List<String> parts = new ArrayList<>();
+        parts.add(quote(exe));
+        String name = Path.of(exe).getFileName().toString().toLowerCase(Locale.ROOT);
+        if (name.equals("java.exe") || name.equals("javaw.exe")) {
+            for (String arg : info.arguments().orElse(new String[0])) {
+                if (arg.startsWith("--snapshot") || arg.startsWith("--select") || arg.equals(REAPPLY_ARG)) {
+                    continue;
+                }
+                parts.add(quote(arg));
+            }
+        }
+        parts.add(REAPPLY_ARG);
+        return Optional.of(String.join(" ", parts));
+    }
+
+    private static String quote(String s) {
+        return s.contains(" ") ? "\"" + s + "\"" : s;
+    }
+
+    private static boolean run(String... command) {
+        try {
+            Process p = new ProcessBuilder(command).redirectErrorStream(true).start();
+            p.getInputStream().readAllBytes();
+            return p.waitFor(10, TimeUnit.SECONDS) && p.exitValue() == 0;
+        } catch (IOException e) {
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+}

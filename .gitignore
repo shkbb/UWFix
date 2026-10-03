@@ -1,0 +1,10 @@
+target/
+dist/
+tools/
+*.uwfix-backup
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
