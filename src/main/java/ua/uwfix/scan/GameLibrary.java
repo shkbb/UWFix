@@ -2,9 +2,10 @@ package ua.uwfix.scan;
 
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.Game;
+import ua.uwfix.util.UkrainianCollator;
 
-import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -52,8 +53,7 @@ public final class GameLibrary {
         }
         addUnique(manualGames, all, seenDirs);
 
-        Collator collator = Collator.getInstance(Locale.forLanguageTag("uk"));
-        collator.setStrength(Collator.SECONDARY);
+        Comparator<String> collator = UkrainianCollator.comparator();
         all.sort((a, b) -> collator.compare(a.name(), b.name()));
         return all;
     }

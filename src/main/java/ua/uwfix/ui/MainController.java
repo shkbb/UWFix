@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.SnapshotParameters;
@@ -104,6 +105,8 @@ public final class MainController {
     @FXML private ComboBox<RatioOption> ratioCombo;
     // ---- список ігор
     @FXML private TextField searchField;
+    @FXML private ComboBox<GameListOptions.Filter> filterCombo;
+    @FXML private ComboBox<GameListOptions.Sort> sortCombo;
     @FXML private ListView<Game> gameList;
     @FXML private Button addGameButton;
     @FXML private Button refreshButton;
@@ -153,6 +156,9 @@ public final class MainController {
 
     private final ObservableList<Game> games = FXCollections.observableArrayList();
     private final FilteredList<Game> filteredGames = new FilteredList<>(games, g -> true);
+    private final SortedList<Game> sortedGames = new SortedList<>(filteredGames);
+    /** Поки змінюється вміст списку, JavaFX скидає вибір — ці події ігноруємо. */
+    private boolean refiltering;
     private final ObservableList<FileRow> rows = FXCollections.observableArrayList();
     private final Map<String, GameCell.Badge> badges = new HashMap<>();
 
@@ -199,10 +205,16 @@ public final class MainController {
             store.setIncludeDouble(value);
             saveQuietly();
         });
-        searchField.textProperty().addListener((o, a, text) -> {
-            String q = text == null ? "" : text.strip().toLowerCase(Locale.ROOT);
-            filteredGames.setPredicate(g -> q.isEmpty() || g.name().toLowerCase(Locale.ROOT).contains(q));
-        });
+        searchField.textProperty().addListener((o, a, text) -> applyListView());
+        filterCombo.getItems().setAll(GameListOptions.Filter.values());
+        sortCombo.getItems().setAll(GameListOptions.Sort.values());
+        filterCombo.getSelectionModel().select(GameListOptions.Filter.parse(store.state().listFilter()));
+        sortCombo.getSelectionModel().select(GameListOptions.Sort.parse(store.state().listSort()));
+        filterCombo.setTooltip(new Tooltip(I18n.t("tooltip.filter")));
+        sortCombo.setTooltip(new Tooltip(I18n.t("tooltip.sort")));
+        filterCombo.valueProperty().addListener((o, a, b) -> onListOptionsChanged());
+        sortCombo.valueProperty().addListener((o, a, b) -> onListOptionsChanged());
+        applyListView();
 
         autostartCheck.setTooltip(new Tooltip(I18n.t("tooltip.autostart")));
         autostartCheck.selectedProperty().addListener((o, was, now) -> onAutostartToggled(now));
@@ -377,13 +389,17 @@ public final class MainController {
     }
 
     private void setupGameList() {
-        gameList.setItems(filteredGames);
+        gameList.setItems(sortedGames);
         gameList.setCellFactory(list -> new GameCell(
                 g -> badges.getOrDefault(g.id(), GameCell.Badge.NONE),
                 context.icons()::get,
                 g -> WindowsShell.reveal(g.installDir()),
                 this::removeManualGame));
-        gameList.getSelectionModel().selectedItemProperty().addListener((o, old, game) -> onGameSelected(game));
+        gameList.getSelectionModel().selectedItemProperty().addListener((o, old, game) -> {
+            if (!refiltering) {
+                onGameSelected(game);
+            }
+        });
     }
 
     private void setupFileTable() {
@@ -530,9 +546,8 @@ public final class MainController {
         task.setOnSucceeded(e -> {
             loadingGames = false;
             String keepId = selectId != null ? selectId : currentGame != null ? currentGame.id() : null;
-            games.setAll(task.getValue());
+            keepingSelection(() -> games.setAll(task.getValue()));
             refreshBadges();
-            gamesCountLabel.setText(I18n.t("games.count", games.size()));
             log(I18n.t("log.gamesUpdated", games.size()));
 
             Game toSelect = null;
@@ -543,9 +558,12 @@ public final class MainController {
                     break;
                 }
             }
-            if (toSelect != null) {
+            boolean alreadyShown = toSelect != null && currentGame != null && toSelect.id().equals(currentGame.id());
+            if (toSelect != null && !alreadyShown) {
                 gameList.getSelectionModel().select(toSelect);
                 gameList.scrollTo(toSelect);
+            } else if (alreadyShown) {
+                currentGame = toSelect;
             } else if (games.isEmpty()) {
                 showPlaceholder(I18n.t("placeholder.noGames.title"), I18n.t("placeholder.noGames.text"));
             } else {
@@ -629,7 +647,60 @@ public final class MainController {
         }
         outdatedBanner.setVisible(outdated > 0);
         outdatedLabel.setText(I18n.plural("banner.outdated", outdated));
+        applyListView();
         gameList.refresh();
+    }
+
+    private void onListOptionsChanged() {
+        GameListOptions.Filter filter = filterCombo.getValue();
+        GameListOptions.Sort sort = sortCombo.getValue();
+        store.setListView(filter == null ? null : filter.name(), sort == null ? null : sort.name());
+        saveQuietly();
+        applyListView();
+    }
+
+    /** Застосовує пошук, фільтр і сортування, не скидаючи обрану гру. */
+    private void applyListView() {
+        String query = searchField.getText();
+        GameListOptions.Filter filter = filterCombo.getValue() == null ? GameListOptions.Filter.ALL : filterCombo.getValue();
+        GameListOptions.Sort sort = sortCombo.getValue() == null ? GameListOptions.Sort.NAME : sortCombo.getValue();
+        keepingSelection(() -> {
+            filteredGames.setPredicate(g -> GameListOptions.matchesSearch(g, query) && filter.accepts(badge(g)));
+            sortedGames.setComparator(sort.comparator(this::badge));
+        });
+        // щоб після очищення пошуку обрану гру було видно в списку
+        Game selected = gameList.getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            gameList.scrollTo(selected);
+        }
+        if (!loadingGames) {
+            gamesCountLabel.setText(sortedGames.size() == games.size()
+                    ? I18n.t("games.count", games.size())
+                    : I18n.t("games.shown", sortedGames.size(), games.size()));
+        }
+    }
+
+    /**
+     * Виконує зміну списку і знову позначає обрану гру. Якщо гра тимчасово не підходить
+     * під пошук чи фільтр, її деталі лишаються на екрані — гра не «скидається».
+     */
+    private void keepingSelection(Runnable change) {
+        Game keep = currentGame;
+        refiltering = true;
+        try {
+            change.run();
+            if (keep != null) {
+                sortedGames.stream().filter(g -> g.id().equals(keep.id())).findFirst()
+                        .ifPresentOrElse(g -> gameList.getSelectionModel().select(g),
+                                () -> gameList.getSelectionModel().clearSelection());
+            }
+        } finally {
+            refiltering = false;
+        }
+    }
+
+    private GameCell.Badge badge(Game game) {
+        return badges.getOrDefault(game.id(), GameCell.Badge.NONE);
     }
 
     private boolean isOutdated(PatchRecord r) {
@@ -1084,6 +1155,8 @@ public final class MainController {
         busy = value;
         gameList.setDisable(value);
         searchField.setDisable(value);
+        filterCombo.setDisable(value);
+        sortCombo.setDisable(value);
         addGameButton.setDisable(value);
         refreshButton.setDisable(value);
         ratioCombo.setDisable(value);
@@ -1285,6 +1358,8 @@ public final class MainController {
                         onRestore();
                     } else if (action.equals("update")) {
                         onUpdate();
+                    } else if (action.startsWith("search:")) {
+                        searchField.setText(action.substring("search:".length()));
                     }
                     return; // чекаємо, доки дія завершиться
                 }

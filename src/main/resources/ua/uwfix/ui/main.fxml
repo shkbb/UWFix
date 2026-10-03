@@ -54,6 +54,10 @@
     <left>
         <VBox styleClass="sidebar" spacing="10" prefWidth="320" minWidth="260">
             <TextField fx:id="searchField" promptText="%sidebar.search" styleClass="search-field"/>
+            <HBox spacing="8">
+                <ComboBox fx:id="filterCombo" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="list-option"/>
+                <ComboBox fx:id="sortCombo" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="list-option"/>
+            </HBox>
             <ListView fx:id="gameList" VBox.vgrow="ALWAYS" styleClass="game-list"/>
             <CheckBox fx:id="autostartCheck" text="%sidebar.autostart"
                       wrapText="true" styleClass="autostart-check"/>

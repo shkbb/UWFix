@@ -19,6 +19,10 @@ public final class AppState {
     /** Мова інтерфейсу: «uk», «en» або null — як у системі. */
     String language;
 
+    /** Фільтр і сортування списку ігор (назви елементів переліку). */
+    String listFilter;
+    String listSort;
+
     List<ManualGameEntry> manualGames = new ArrayList<>();
     List<PatchRecord> patches = new ArrayList<>();
 
@@ -36,6 +40,14 @@ public final class AppState {
 
     public String language() {
         return language;
+    }
+
+    public String listFilter() {
+        return listFilter;
+    }
+
+    public String listSort() {
+        return listSort;
     }
 
     public List<ManualGameEntry> manualGames() {
