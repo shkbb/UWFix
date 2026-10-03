@@ -2,11 +2,13 @@ package ua.uwfix.update;
 
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.search.FileScanner;
+import ua.uwfix.system.Os;
 import ua.uwfix.system.WindowsShell;
 import ua.uwfix.util.ProgressListener;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.File;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,6 +23,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -28,16 +31,23 @@ import java.util.zip.ZipInputStream;
 /**
  * Встановлює нову версію програми.
  * <ol>
- *   <li>завантажує портативний архів з GitHub і перевіряє розмір та SHA-256;</li>
+ *   <li>завантажує архів з GitHub (Windows — .zip, Linux — .tar.gz) і перевіряє розмір та SHA-256;</li>
  *   <li>розпаковує його у тимчасову папку (із захистом від «zip slip» — шляхів на кшталт ..\..);</li>
- *   <li>запускає невеликий скрипт PowerShell і закриває програму: скрипт чекає завершення процесу,
- *       копіює нові файли поверх старих (robocopy) і запускає нову версію.</li>
+ *   <li>запускає невеликий скрипт (PowerShell або sh) і закриває програму: скрипт чекає завершення
+ *       процесу, копіює нові файли поверх старих і запускає нову версію.</li>
  * </ol>
- * Сама програма замінити себе не може — її файли заблоковані, поки вона працює.
+ * Сама програма замінити себе не може — у Windows її файли заблоковані, поки вона працює.
+ * <p>
+ * Будова зібраної програми (jpackage):
+ * <pre>
+ * Windows: UWFix.exe, app\UWFix.cfg, runtime\…
+ * Linux:   bin/UWFix, lib/app/UWFix.cfg, lib/runtime/…
+ * </pre>
  */
 public final class UpdateInstaller {
 
     public static final String EXE_NAME = "UWFix.exe";
+    public static final String LINUX_LAUNCHER = "UWFix";
 
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
@@ -45,29 +55,45 @@ public final class UpdateInstaller {
             .build();
 
     /**
-     * Папка зібраної програми ({@code UWFix.exe}, {@code app\}, {@code runtime\}), якщо програма
-     * запущена саме з неї. Під час розробки (запуск через java.exe) повертає порожнє значення —
-     * тоді автоматичне оновлення вимкнено, щоб випадково не перезаписати чужі файли.
+     * Папка зібраної програми, якщо програма запущена саме з неї. Під час розробки (запуск через java)
+     * повертає порожнє значення — тоді автоматичне оновлення вимкнено, щоб випадково не перезаписати
+     * чужі файли.
      */
     public static Optional<Path> currentAppDir() {
         Optional<String> command = ProcessHandle.current().info().command();
-        if (command.isEmpty()) {
-            return Optional.empty();
-        }
-        Path exe = Path.of(command.get()).toAbsolutePath();
-        if (exe.getFileName() == null || !exe.getFileName().toString().equalsIgnoreCase(EXE_NAME)) {
-            return Optional.empty();
-        }
-        Path dir = exe.getParent();
-        return isAppImage(dir) ? Optional.of(dir) : Optional.empty();
+        return command.flatMap(c -> appDirOf(Path.of(c).toAbsolutePath()));
     }
 
-    /** Чи схожа папка на зібрану програму jpackage. */
+    /** {@code …/UWFix/UWFix.exe} → {@code …/UWFix}; {@code …/UWFix/bin/UWFix} → {@code …/UWFix}. */
+    static Optional<Path> appDirOf(Path launcher) {
+        Path name = launcher.getFileName();
+        Path dir = launcher.getParent();
+        if (name == null || dir == null) {
+            return Optional.empty();
+        }
+        if (name.toString().equalsIgnoreCase(EXE_NAME)) {
+            return isAppImage(dir) ? Optional.of(dir) : Optional.empty();
+        }
+        if (name.toString().equals(LINUX_LAUNCHER) && dir.getFileName() != null
+                && dir.getFileName().toString().equals("bin") && isAppImage(dir.getParent())) {
+            return Optional.of(dir.getParent());
+        }
+        return Optional.empty();
+    }
+
+    /** Чи схожа папка на зібрану програму jpackage (для Windows або для Linux). */
     static boolean isAppImage(Path dir) {
-        return dir != null
-                && Files.isRegularFile(dir.resolve(EXE_NAME))
+        if (dir == null) {
+            return false;
+        }
+        boolean windows = Files.isRegularFile(dir.resolve(EXE_NAME))
                 && Files.isRegularFile(dir.resolve("app").resolve("UWFix.cfg"))
                 && Files.isDirectory(dir.resolve("runtime"));
+        Path lib = dir.resolve("lib");
+        boolean linux = Files.isRegularFile(dir.resolve("bin").resolve(LINUX_LAUNCHER))
+                && Files.isRegularFile(lib.resolve("app").resolve("UWFix.cfg"))
+                && Files.isDirectory(lib.resolve("runtime"));
+        return windows || linux;
     }
 
     /** Чи можна писати в папку без прав адміністратора. */
@@ -90,12 +116,16 @@ public final class UpdateInstaller {
         try {
             deleteRecursively(workDir);
             Files.createDirectories(workDir);
-            Path zip = workDir.resolve(release.zipName());
-            download(release, zip, progress);
-            verify(zip, release);
+            Path archive = workDir.resolve(release.zipName());
+            download(release, archive, progress);
+            verify(archive, release);
             progress.update(-1, I18n.t("update.unpacking"));
             Path extracted = workDir.resolve("new");
-            unzip(zip, extracted);
+            if (release.zipName().endsWith(".tar.gz")) {
+                TarArchive.extract(archive, extracted);
+            } else {
+                unzip(archive, extracted);
+            }
             Path app = extracted.resolve("UWFix");
             if (!isAppImage(app)) {
                 throw new UpdateException(I18n.t("error.update.badArchive"));
@@ -171,9 +201,7 @@ public final class UpdateInstaller {
     }
 
     /**
-     * Скрипт PowerShell, що замінює програму новою версією.
-     * Папки {@code runtime} і {@code app} цілком належать програмі, тому їх дзеркалить robocopy /MIR
-     * (зайві старі файли видаляються); у корені копіюються лише файли програми.
+     * Скрипт, що замінює програму новою версією: PowerShell у Windows, sh у Linux.
      *
      * @param pid         процес, завершення якого треба дочекатися
      * @param newApp      папка нової версії
@@ -184,6 +212,17 @@ public final class UpdateInstaller {
      */
     public static String updaterScript(long pid, Path newApp, Path appDir, Path workDir, Path logFile,
                                        List<String> restartArgs) {
+        return Os.isWindows()
+                ? powershellScript(pid, newApp, appDir, workDir, logFile, restartArgs)
+                : shellScript(pid, newApp, appDir, workDir, logFile, restartArgs);
+    }
+
+    /**
+     * Windows. Папки {@code runtime} і {@code app} цілком належать програмі, тому їх дзеркалить
+     * robocopy /MIR (зайві старі файли видаляються); у корені копіюються лише файли програми.
+     */
+    static String powershellScript(long pid, Path newApp, Path appDir, Path workDir, Path logFile,
+                                   List<String> restartArgs) {
         StringBuilder args = new StringBuilder();
         for (String arg : restartArgs) {
             if (args.length() > 0) {
@@ -216,11 +255,47 @@ public final class UpdateInstaller {
     }
 
     /**
+     * Linux. Нова папка lib спершу копіюється поруч зі старою (lib.new) і лише потім підміняє її —
+     * так збій посеред копіювання не залишить програму напівзаміненою.
+     */
+    static String shellScript(long pid, Path newApp, Path appDir, Path workDir, Path logFile,
+                              List<String> restartArgs) {
+        String args = restartArgs.stream().map(UpdateInstaller::shQuote).collect(Collectors.joining(" "));
+        return String.join("\n",
+                "log=" + shQuote(logFile.toString()),
+                "src=" + shQuote(newApp.toString()),
+                "dst=" + shQuote(appDir.toString()),
+                "say() { echo \"$(date '+%Y-%m-%dT%H:%M:%S')  $1\" >> \"$log\"; }",
+                "i=0",
+                "while kill -0 " + pid + " 2>/dev/null && [ $i -lt 60 ]; do sleep 1; i=$((i+1)); done",
+                "if rm -rf \"$dst/lib.new\" && cp -a \"$src/lib\" \"$dst/lib.new\" \\",
+                "    && cp -a \"$src/bin/UWFix\" \"$dst/bin/UWFix.new\" \\",
+                "    && rm -rf \"$dst/lib\" && mv \"$dst/lib.new\" \"$dst/lib\" \\",
+                "    && mv -f \"$dst/bin/UWFix.new\" \"$dst/bin/UWFix\"; then",
+                "    say 'update installed'",
+                "else",
+                "    say 'update failed'",
+                "fi",
+                "rm -rf " + shQuote(workDir.toString()),
+                "\"$dst/bin/UWFix\"" + (args.isEmpty() ? "" : " " + args) + " >/dev/null 2>&1 &",
+                "");
+    }
+
+    /** Рядок у одинарних лапках для sh: всередині них нічого не розкривається, крім самої лапки. */
+    static String shQuote(String s) {
+        return "'" + s.replace("'", "'\\''") + "'";
+    }
+
+    /**
      * Запускає скрипт оновлення окремим процесом (він переживе закриття програми).
      *
      * @param elevated запустити з правами адміністратора (якщо папка програми захищена від запису)
      */
     public void launch(String script, boolean elevated) throws UpdateException {
+        if (!Os.isWindows()) {
+            launchShell(script, elevated);
+            return;
+        }
         String encoded = Base64.getEncoder().encodeToString(script.getBytes(StandardCharsets.UTF_16LE));
         try {
             if (!elevated) {
@@ -236,6 +311,27 @@ public final class UpdateInstaller {
         if (!started) {
             throw new UpdateException(I18n.t("error.update.launch", "UAC"));
         }
+    }
+
+    /** setsid — окрема сесія, щоб скрипт не завершився разом з програмою. */
+    private static void launchShell(String script, boolean elevated) throws UpdateException {
+        if (elevated) {
+            throw new UpdateException(I18n.t("error.update.launch", "permission denied"));
+        }
+        IOException last = null;
+        for (List<String> command : List.of(List.of("setsid", "sh", "-c", script), List.of("sh", "-c", script))) {
+            try {
+                new ProcessBuilder(command)
+                        .redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")))
+                        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                        .redirectError(ProcessBuilder.Redirect.DISCARD)
+                        .start();
+                return;
+            } catch (IOException e) {
+                last = e; // setsid немає — пробуємо без нього
+            }
+        }
+        throw new UpdateException(I18n.t("error.update.launch", String.valueOf(last.getMessage())), last);
     }
 
     static void deleteRecursively(Path dir) throws IOException {

@@ -7,6 +7,7 @@ import ua.uwfix.util.PathsCi;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,6 +32,18 @@ class OsAndPathsTest {
         assertFalse(SystemShell.isAllowedScheme("file:///etc/passwd"));
         assertFalse(SystemShell.isAllowedScheme("http://example.com"));
         assertFalse(SystemShell.isAllowedScheme("cmd.exe /c calc"));
+    }
+
+    @Test
+    void linuxAutostartEntryQuotesArguments() {
+        String entry = Autostart.desktopEntry(List.of("/home/me/My Apps/UWFix/bin/UWFix", "--reapply"));
+        assertTrue(entry.startsWith("[Desktop Entry]\nType=Application\n"));
+        assertTrue(entry.contains("\nExec=\"/home/me/My Apps/UWFix/bin/UWFix\" --reapply\n"));
+
+        assertEquals("/opt/UWFix/bin/UWFix", Autostart.desktopQuote("/opt/UWFix/bin/UWFix"));
+        assertEquals("-Duwfix.home=/tmp/x", Autostart.desktopQuote("-Duwfix.home=/tmp/x"));
+        // $ і " екрануються зворотною рискою, яку рядок .desktop ще раз подвоює; % — це %%
+        assertEquals("\"a\\\\$b\\\\\"c 100%%\"", Autostart.desktopQuote("a$b\"c 100%"));
     }
 
     @Test

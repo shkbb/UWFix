@@ -9,11 +9,15 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
+import java.util.Locale;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -79,7 +83,7 @@ class UpdateInstallerTest {
 
     @Test
     void scriptWaitsForProcessCopiesFilesAndRestarts() {
-        String script = UpdateInstaller.updaterScript(4242, Path.of("C:\\Temp\\new\\UWFix"),
+        String script = UpdateInstaller.powershellScript(4242, Path.of("C:\\Temp\\new\\UWFix"),
                 Path.of("C:\\Games Tools\\UWFix"), Path.of("C:\\Temp"), Path.of("C:\\Users\\me\\UWFix\\update.log"),
                 List.of("--demo", "--snapshot=C:\\shots\\a b.png", "--updated=1.2.0"));
 
@@ -88,6 +92,106 @@ class UpdateInstallerTest {
         assertTrue(script.contains("(Join-Path $src 'runtime') (Join-Path $dst 'runtime') /MIR"));
         assertTrue(script.contains("-ArgumentList @('--demo','\"--snapshot=C:\\shots\\a b.png\"','--updated=1.2.0')"));
         assertTrue(script.contains("Remove-Item -LiteralPath 'C:\\Temp'"));
+    }
+
+    @Test
+    void unpacksLinuxTarGzWithLongNamesAndModes() throws Exception {
+        String longName = "UWFix/lib/runtime/legal/" + "x".repeat(90) + "/LICENSE";
+        byte[] big = new byte[70_000]; // більше за кілька блоків по 512 байт
+        for (int i = 0; i < big.length; i++) {
+            big[i] = (byte) i;
+        }
+        Path archive = dir.resolve("UWFix-1.7.0-linux-x64.tar.gz");
+        try (OutputStream out = new GZIPOutputStream(Files.newOutputStream(archive))) {
+            tarEntry(out, "UWFix/", '5', 0755, new byte[0]);
+            tarEntry(out, "UWFix/bin/UWFix", '0', 0755, "#!launcher".getBytes(StandardCharsets.UTF_8));
+            tarEntry(out, "UWFix/lib/app/UWFix.cfg", '0', 0644, "[Application]".getBytes(StandardCharsets.UTF_8));
+            tarEntry(out, "UWFix/lib/runtime/lib/modules", '0', 0644, big);
+            // GNU tar: назва довша за 100 символів іде окремим записом «././@LongLink»
+            tarEntry(out, "././@LongLink", 'L', 0644, (longName + "\0").getBytes(StandardCharsets.UTF_8));
+            tarEntry(out, longName.substring(0, 100), '0', 0644, "GPL".getBytes(StandardCharsets.UTF_8));
+            out.write(new byte[1024]); // кінець архіву — два порожні блоки
+        }
+        Path target = dir.resolve("new");
+        TarArchive.extract(archive, target);
+
+        Path app = target.resolve("UWFix");
+        assertTrue(UpdateInstaller.isAppImage(app));
+        assertArrayEquals(big, Files.readAllBytes(app.resolve("lib/runtime/lib/modules")));
+        assertEquals("GPL", Files.readString(target.resolve(longName)));
+        if (Files.getFileStore(app).supportsFileAttributeView("posix")) {
+            assertTrue(Files.getPosixFilePermissions(app.resolve("bin/UWFix")).contains(PosixFilePermission.OWNER_EXECUTE));
+        }
+    }
+
+    @Test
+    void tarRejectsPathsLeavingTheTargetFolder() throws Exception {
+        Path archive = dir.resolve("evil.tar.gz");
+        try (OutputStream out = new GZIPOutputStream(Files.newOutputStream(archive))) {
+            tarEntry(out, "../../evil.txt", '0', 0644, "boom".getBytes(StandardCharsets.UTF_8));
+            out.write(new byte[1024]);
+        }
+        assertThrows(UpdateException.class, () -> TarArchive.extract(archive, dir.resolve("new")));
+    }
+
+    @Test
+    void findsLinuxAppImageFromLauncher() throws IOException {
+        Path app = dir.resolve("opt/UWFix");
+        Files.createDirectories(app.resolve("bin"));
+        Files.createDirectories(app.resolve("lib/app"));
+        Files.createDirectories(app.resolve("lib/runtime"));
+        Files.writeString(app.resolve("bin/UWFix"), "");
+        Files.writeString(app.resolve("lib/app/UWFix.cfg"), "");
+
+        assertEquals(app, UpdateInstaller.appDirOf(app.resolve("bin/UWFix")).orElseThrow());
+        assertTrue(UpdateInstaller.appDirOf(app.resolve("bin/java")).isEmpty());
+        assertTrue(UpdateInstaller.appDirOf(dir.resolve("UWFix")).isEmpty());
+    }
+
+    @Test
+    void shellScriptReplacesLibAtomicallyAndRestarts() {
+        Path appDir = Path.of("/home/me/Apps/UW Fix");
+        String script = UpdateInstaller.shellScript(4242, Path.of("/tmp/UWFix-update/new/UWFix"),
+                appDir, Path.of("/tmp/UWFix-update"), Path.of("/home/me/.config/uwfix/update.log"),
+                List.of("--snapshot=/tmp/it's.png", "--updated=1.7.0"));
+
+        assertTrue(script.contains("kill -0 4242"));
+        assertTrue(script.contains("dst=" + UpdateInstaller.shQuote(appDir.toString())));
+        assertTrue(script.contains("cp -a \"$src/lib\" \"$dst/lib.new\""));
+        assertTrue(script.contains("\"$dst/bin/UWFix\" '--snapshot=/tmp/it'\\''s.png' '--updated=1.7.0' >/dev/null 2>&1 &"));
+        assertEquals("'it'\\''s'", UpdateInstaller.shQuote("it's"));
+    }
+
+    /** Заголовок ustar (512 байт) + вміст, доповнений нулями. */
+    private static void tarEntry(OutputStream out, String name, char type, int mode, byte[] data) throws IOException {
+        byte[] h = new byte[512];
+        byte[] n = name.getBytes(StandardCharsets.UTF_8);
+        System.arraycopy(n, 0, h, 0, Math.min(100, n.length));
+        putOctal(h, 100, 8, mode);
+        putOctal(h, 108, 8, 0);
+        putOctal(h, 116, 8, 0);
+        putOctal(h, 124, 12, data.length);
+        putOctal(h, 136, 12, 0);
+        h[156] = (byte) type;
+        System.arraycopy("ustar\0".getBytes(StandardCharsets.US_ASCII), 0, h, 257, 6);
+        h[263] = '0';
+        h[264] = '0';
+        for (int i = 148; i < 156; i++) {
+            h[i] = ' ';
+        }
+        int sum = 0;
+        for (byte b : h) {
+            sum += b & 0xFF;
+        }
+        putOctal(h, 148, 7, sum);
+        out.write(h);
+        out.write(data);
+        out.write(new byte[(512 - data.length % 512) % 512]);
+    }
+
+    private static void putOctal(byte[] h, int offset, int length, long value) {
+        String text = String.format(Locale.ROOT, "%0" + (length - 1) + "o", value);
+        System.arraycopy(text.getBytes(StandardCharsets.US_ASCII), 0, h, offset, length - 1);
     }
 
     private Path zip(String name, String... entries) throws IOException {

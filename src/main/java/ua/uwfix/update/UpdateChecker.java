@@ -5,6 +5,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import ua.uwfix.system.Os;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -79,6 +81,10 @@ public final class UpdateChecker {
      * @return реліз або {@code null}, якщо це чернетка, pre-release, або в ньому немає портативного архіву
      */
     static ReleaseInfo parse(String json, boolean trustedOnly) {
+        return parse(json, trustedOnly, Os.current());
+    }
+
+    static ReleaseInfo parse(String json, boolean trustedOnly, Os os) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
         if (bool(root, "draft") || bool(root, "prerelease")) {
             return null;
@@ -87,7 +93,10 @@ public final class UpdateChecker {
         if (version == null) {
             return null;
         }
-        String expectedName = assetName(version);
+        String expectedName = assetName(version, os);
+        if (expectedName == null) {
+            return null; // для цієї системи збірки немає
+        }
         JsonElement assets = root.get("assets");
         if (assets == null || !assets.isJsonArray()) {
             return null;
@@ -108,9 +117,16 @@ public final class UpdateChecker {
         return null;
     }
 
-    /** Назва архіву портативної версії в релізі: «UWFix-1.2.0-portable.zip». */
-    public static String assetName(Version version) {
-        return "UWFix-" + version + "-portable.zip";
+    /**
+     * Назва архіву з програмою в релізі: «UWFix-1.2.0-portable.zip» для Windows,
+     * «UWFix-1.7.0-linux-x64.tar.gz» для Linux; {@code null} для інших систем.
+     */
+    public static String assetName(Version version, Os os) {
+        return switch (os) {
+            case WINDOWS -> "UWFix-" + version + "-portable.zip";
+            case LINUX -> "UWFix-" + version + "-linux-x64.tar.gz";
+            case OTHER -> null;
+        };
     }
 
     /** GitHub повідомляє контрольну суму файлу як «sha256:abc…». */

@@ -1,6 +1,7 @@
 package ua.uwfix.update;
 
 import org.junit.jupiter.api.Test;
+import ua.uwfix.system.Os;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -31,7 +32,7 @@ class UpdateCheckerTest {
 
     @Test
     void readsVersionPortableArchiveAndChecksum() {
-        ReleaseInfo r = UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.2.0-portable.zip", ZIP_URL), true);
+        ReleaseInfo r = UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.2.0-portable.zip", ZIP_URL), true, Os.WINDOWS);
         assertEquals("1.2.0", r.version().toString());
         assertEquals(ZIP_URL, r.zipUrl());
         assertEquals(28512345, r.zipSize());
@@ -41,22 +42,31 @@ class UpdateCheckerTest {
 
     @Test
     void ignoresDraftsAndPrereleases() {
-        assertNull(UpdateChecker.parse(release("v1.2.0", true, false, "UWFix-1.2.0-portable.zip", ZIP_URL), true));
-        assertNull(UpdateChecker.parse(release("v1.2.0", false, true, "UWFix-1.2.0-portable.zip", ZIP_URL), true));
+        assertNull(UpdateChecker.parse(release("v1.2.0", true, false, "UWFix-1.2.0-portable.zip", ZIP_URL), true, Os.WINDOWS));
+        assertNull(UpdateChecker.parse(release("v1.2.0", false, true, "UWFix-1.2.0-portable.zip", ZIP_URL), true, Os.WINDOWS));
     }
 
     @Test
     void requiresPortableArchiveOfTheSameVersion() {
-        assertNull(UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.1.0-portable.zip", ZIP_URL), true));
+        assertNull(UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.1.0-portable.zip", ZIP_URL), true, Os.WINDOWS));
     }
 
     @Test
     void rejectsDownloadsFromOtherPlaces() {
         String foreign = "https://evil.example.com/UWFix-1.2.0-portable.zip";
-        assertNull(UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.2.0-portable.zip", foreign), true));
+        assertNull(UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.2.0-portable.zip", foreign), true, Os.WINDOWS));
         // для тестового сервера (адреса API перевизначена) перевірка джерела вимикається
         assertEquals(foreign,
-                UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.2.0-portable.zip", foreign), false).zipUrl());
+                UpdateChecker.parse(release("v1.2.0", false, false, "UWFix-1.2.0-portable.zip", foreign), false, Os.WINDOWS).zipUrl());
+    }
+
+    @Test
+    void linuxTakesItsOwnArchive() {
+        String url = "https://github.com/shkbb/UWFix/releases/download/v1.7.0/UWFix-1.7.0-linux-x64.tar.gz";
+        String json = release("v1.7.0", false, false, "UWFix-1.7.0-linux-x64.tar.gz", url);
+        assertEquals(url, UpdateChecker.parse(json, true, Os.LINUX).zipUrl());
+        assertNull(UpdateChecker.parse(json, true, Os.WINDOWS), "архіву для Windows у цьому релізі немає");
+        assertNull(UpdateChecker.parse(json, true, Os.OTHER));
     }
 
     @Test

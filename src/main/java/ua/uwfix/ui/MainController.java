@@ -361,7 +361,8 @@ public final class MainController {
             return;
         }
         Optional<Path> appDir = UpdateInstaller.currentAppDir();
-        if (appDir.isEmpty()) {
+        // Linux: підвищити права для скрипту оновлення ми не можемо — тоді оновлення вручну
+        if (appDir.isEmpty() || (!SystemShell.canElevate() && !UpdateInstaller.canWrite(appDir.get()))) {
             SystemShell.openUri(release.pageUrl());
             return;
         }
