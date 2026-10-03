@@ -15,12 +15,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.Objects;
+import java.util.Properties;
 
 /** JavaFX-застосунок: створює головне вікно. Запускається з {@link Main}. */
 public final class App extends Application {
 
     public static final String NAME = "UWFix";
-    public static final String VERSION = "1.0.0";
+    /** Версія з pom.xml (Maven підставляє її у version.properties під час збирання). */
+    public static final String VERSION = readVersion();
 
     private AppContext context;
     private Stage stage;
@@ -79,5 +81,17 @@ public final class App extends Application {
         if (context != null) {
             context.shutdown();
         }
+    }
+
+    private static String readVersion() {
+        Properties properties = new Properties();
+        try (InputStream in = App.class.getResourceAsStream("version.properties")) {
+            if (in != null) {
+                properties.load(in);
+            }
+        } catch (IOException ignored) {
+            // без файлу версії програма працює, просто не покаже номер
+        }
+        return properties.getProperty("version", "dev");
     }
 }

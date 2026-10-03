@@ -63,7 +63,8 @@ function Reset-DemoState([string]$language) {
 }
 
 function Snap([string]$file, [string[]]$extra) {
-    $javaArgs = @("-Duwfix.home=$demoHome", '--module-path', 'target\uwfix-1.0.0.jar;target\libs',
+    $version = ([xml](Get-Content -Raw -Encoding UTF8 pom.xml)).project.version
+    $javaArgs = @("-Duwfix.home=$demoHome", '--module-path', "target\uwfix-$version.jar;target\libs",
                   '-m', 'uwfix/ua.uwfix.Main', '--demo', "--snapshot=$file") + $extra
     & java @javaArgs
 }

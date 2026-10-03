@@ -6,7 +6,7 @@
 
     <groupId>ua.uwfix</groupId>
     <artifactId>uwfix</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <name>UWFix</name>
     <description>Виправлення чорних смуг у катсценах ігор на ультрашироких моніторах</description>
 
@@ -64,6 +64,23 @@
     </dependencies>
 
     <build>
+        <resources>
+            <!-- У version.properties Maven підставляє ${project.version}; інші ресурси (іконка тощо) не чіпає -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>ua/uwfix/version.properties</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>ua/uwfix/version.properties</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -27,7 +27,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
-$version = '1.0.0'
+$version = ([xml](Get-Content -Raw -Encoding UTF8 pom.xml)).project.version  # єдине джерело версії — pom.xml
 $name = 'UWFix'
 # Постійний ідентифікатор: завдяки йому нова версія інсталятора оновлює стару, а не ставиться поруч
 $upgradeUuid = '6f3c2a7e-9b1d-4e52-8a47-2c1f0d9e5b31'
