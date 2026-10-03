@@ -4,7 +4,7 @@
 # Результат у папці dist/:
 #   UWFix/                              програма: bin/UWFix + вбудована Java (нічого встановлювати не треба)
 #   UWFix-<версія>-linux-x64.tar.gz     та сама папка в архіві (з нього працює самооновлення)
-#   uwfix_<версія>-1_amd64.deb          пакет для Debian/Ubuntu (лише з --deb, потрібні dpkg-deb і fakeroot)
+#   uwfix_<версія>_amd64.deb            пакет для Debian/Ubuntu (лише з --deb, потрібні dpkg-deb і fakeroot)
 #
 # Кроки ті самі, що й у build-installer.ps1 для Windows:
 #   1. Maven: компіляція, тести, jar і копіювання залежностей у target/libs
