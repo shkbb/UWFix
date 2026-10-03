@@ -2,6 +2,7 @@ package ua.uwfix.patch;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import ua.uwfix.system.Os;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,8 +31,10 @@ class PatchStoreTest {
         assertEquals(1440, loaded.state().targetHeight());
         assertTrue(loaded.state().includeDouble());
         assertEquals("Моя гра", loaded.state().manualGames().get(0).name());
-        PatchRecord r = loaded.find(Path.of("d:\\games\\MY\\GAME.EXE")).orElseThrow(); // регістр не важливий
+        PatchRecord r = loaded.find(Path.of("D:\\Games\\My\\game.exe")).orElseThrow();
         assertEquals(List.of("FLOAT32"), r.formats());
+        // у Windows регістр літер у шляху не важливий, у Linux — це вже інший файл
+        assertEquals(Os.isWindows(), loaded.find(Path.of("d:\\games\\MY\\GAME.EXE")).isPresent());
         assertEquals(new PatchChange(16, "398EE33F", "8EE31840"), r.changes().get(0));
     }
 
@@ -39,8 +42,10 @@ class PatchStoreTest {
     void putReplacesRecordForSameFile() {
         PatchStore store = new PatchStore(dir.resolve("state.json"));
         store.put(record("C:\\a.exe"));
-        store.put(record("C:\\A.EXE"));
+        store.put(record("C:\\a.exe"));
         assertEquals(1, store.all().size());
+        store.put(record("C:\\A.EXE"));
+        assertEquals(Os.isWindows() ? 1 : 2, store.all().size());
     }
 
     @Test
