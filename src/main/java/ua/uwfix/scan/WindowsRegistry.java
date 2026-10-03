@@ -29,7 +29,7 @@ public final class WindowsRegistry {
 
     /** Чи працює програма у Windows (реєстр є лише там). */
     public static boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows");
+        return ua.uwfix.system.Os.isWindows();
     }
 
     /**

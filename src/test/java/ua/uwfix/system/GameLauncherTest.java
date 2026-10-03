@@ -33,6 +33,13 @@ class GameLauncherTest {
     }
 
     @Test
+    void onLinuxOnlySteamGamesHaveALauncher() {
+        assertEquals("steam://rungameid/292030", GameLauncher.launcherUri(game(GameSource.STEAM, "292030"), Os.LINUX));
+        assertNull(GameLauncher.launcherUri(game(GameSource.EPIC, "fa4240e5"), Os.LINUX));
+        assertNull(GameLauncher.launcherUri(game(GameSource.UBISOFT, "635"), Os.LINUX));
+    }
+
+    @Test
     void prefersStarterExeInTheRootFolder() throws IOException {
         write("Game/Binaries/Win64/Game-Win64-Shipping.exe", 90_000);
         Path starter = write("Game.exe", 3_000);

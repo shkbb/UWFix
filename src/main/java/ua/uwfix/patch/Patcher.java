@@ -6,6 +6,7 @@ import ua.uwfix.model.ValueFormat;
 import ua.uwfix.search.FileScanner;
 import ua.uwfix.search.Hex;
 import ua.uwfix.search.ScanResult;
+import ua.uwfix.system.Os;
 import ua.uwfix.util.ProgressListener;
 
 import java.io.IOException;
@@ -365,7 +366,7 @@ public final class Patcher {
                 return;
             }
             throw new PatchException(PatchException.Kind.NEED_ADMIN,
-                    I18n.t("error.needAdmin", file.getFileName().toString()), e);
+                    I18n.t(Os.isWindows() ? "error.needAdmin" : "error.noPermission", file.getFileName().toString()), e);
         } catch (FileSystemException e) {
             throw new PatchException(PatchException.Kind.FILE_IN_USE,
                     I18n.t("error.inUse", file.getFileName().toString()), e);

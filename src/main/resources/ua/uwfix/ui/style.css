@@ -30,7 +30,7 @@
     -fx-text-background-color: -uw-text;
     -fx-selection-bar: #2e3542;
     -fx-selection-bar-non-focused: #2a303b;
-    -fx-font-family: "Segoe UI", "Segoe UI Variable", sans-serif;
+    -fx-font-family: "Segoe UI", "Segoe UI Variable", "Noto Sans", "Ubuntu", "Cantarell", "DejaVu Sans", sans-serif;
     -fx-font-size: 13px;
 }
 
@@ -569,7 +569,7 @@
 
 .log-area, .log-area .content {
     -fx-background-color: -uw-sidebar;
-    -fx-font-family: "Consolas", monospace;
+    -fx-font-family: "Consolas", "DejaVu Sans Mono", "Noto Sans Mono", monospace;
     -fx-font-size: 12px;
     -fx-text-fill: #b8bfcc;
     -fx-background-radius: 8;

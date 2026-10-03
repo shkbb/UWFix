@@ -30,12 +30,17 @@ public final class GameLauncher {
 
     /** Адреса для запуску через лаунчер або {@code null}, якщо гру запускаємо напряму. */
     static String launcherUri(Game game) {
+        return launcherUri(game, Os.current());
+    }
+
+    static String launcherUri(Game game, Os os) {
         String id = game.sourceId();
         return switch (game.source()) {
             case STEAM -> id.matches("\\d+") ? "steam://rungameid/" + id : null;
-            case EPIC -> "com.epicgames.launcher://apps/" + URLEncoder.encode(id, StandardCharsets.UTF_8)
-                    + "?action=launch&silent=true";
-            case UBISOFT -> id.matches("\\d+") ? "uplay://launch/" + id + "/0" : null;
+            // Лаунчери Epic і Ubisoft існують лише для Windows
+            case EPIC -> os == Os.WINDOWS ? "com.epicgames.launcher://apps/" + URLEncoder.encode(id, StandardCharsets.UTF_8)
+                    + "?action=launch&silent=true" : null;
+            case UBISOFT -> os == Os.WINDOWS && id.matches("\\d+") ? "uplay://launch/" + id + "/0" : null;
             default -> null;
         };
     }
@@ -45,11 +50,18 @@ public final class GameLauncher {
         return launcherUri(game) != null;
     }
 
+    /**
+     * Чи вміє програма запустити гру. На Linux ігри для Windows працюють лише через Proton,
+     * тож запуск можливий тільки через Steam.
+     */
+    public static boolean canLaunch(Game game) {
+        return usesLauncher(game) || Os.isWindows();
+    }
+
     public static void launch(Game game) throws IOException {
         String uri = launcherUri(game);
         if (uri != null) {
-            // Провідник відкриває посилання-протокол програмою, зареєстрованою для нього (Steam, Epic…)
-            new ProcessBuilder("explorer.exe", uri).start();
+            SystemShell.openUri(uri);
             return;
         }
         Path exe = launchExecutable(game.installDir())

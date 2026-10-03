@@ -64,6 +64,7 @@ import ua.uwfix.settings.GameSettings;
 import ua.uwfix.settings.ResolutionUnlocker;
 import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
+import ua.uwfix.system.SystemShell;
 import ua.uwfix.system.GameLauncher;
 import ua.uwfix.system.WindowsShell;
 import ua.uwfix.update.ReleaseInfo;
@@ -237,6 +238,7 @@ public final class MainController {
         outdatedBanner.managedProperty().bind(outdatedBanner.visibleProperty());
         updateBanner.managedProperty().bind(updateBanner.visibleProperty());
         updateButton.managedProperty().bind(updateButton.visibleProperty());
+        playButton.managedProperty().bind(playButton.visibleProperty());
         updateNotesLink.managedProperty().bind(updateNotesLink.visibleProperty());
         updateBanner.setVisible(false);
         resolutionRow.managedProperty().bind(resolutionRow.visibleProperty());
@@ -256,10 +258,6 @@ public final class MainController {
 
     /** Викликається після першого показу вікна. */
     public void onShown() {
-        if (context.options().renderIcon() != null) {
-            renderIconAndExit(context.options().renderIcon());
-            return;
-        }
         if (context.options().updatedTo() != null) {
             log(I18n.t("log.updated", context.options().updatedTo()));
             showUpdatedNotice(context.options().updatedTo());
@@ -348,7 +346,7 @@ public final class MainController {
     private void onUpdateNotes() {
         ReleaseInfo release = context.availableUpdate();
         if (release != null) {
-            WindowsShell.openUrl(release.pageUrl());
+            SystemShell.openUri(release.pageUrl());
         }
     }
 
@@ -364,7 +362,7 @@ public final class MainController {
         }
         Optional<Path> appDir = UpdateInstaller.currentAppDir();
         if (appDir.isEmpty()) {
-            WindowsShell.openUrl(release.pageUrl());
+            SystemShell.openUri(release.pageUrl());
             return;
         }
         Path workDir = Path.of(System.getProperty("java.io.tmpdir"), "UWFix-update-" + release.version());
@@ -414,7 +412,7 @@ public final class MainController {
         gameList.setCellFactory(list -> new GameCell(
                 g -> badges.getOrDefault(g.id(), GameCell.Badge.NONE),
                 context.icons()::get,
-                g -> WindowsShell.reveal(g.installDir()),
+                g -> SystemShell.reveal(g.installDir()),
                 this::removeManualGame));
         gameList.getSelectionModel().selectedItemProperty().addListener((o, old, game) -> {
             if (!refiltering) {
@@ -745,6 +743,7 @@ public final class MainController {
         placeholder.setVisible(false);
         detailsPane.setVisible(true);
         gameTitle.setText(game.name());
+        playButton.setVisible(GameLauncher.canLaunch(game));
         playButton.setTooltip(new Tooltip(GameLauncher.usesLauncher(game)
                 ? I18n.t("action.play.launcher", game.source().displayName())
                 : I18n.t("action.play.exe")));
@@ -884,7 +883,7 @@ public final class MainController {
             return;
         }
         for (FileRow row : selected) {
-            if (row.candidate().isExe() && WindowsShell.isRunning(row.candidate().file())) {
+            if (row.candidate().isExe() && SystemShell.isRunning(row.candidate().file())) {
                 Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.running.text", row.candidate().fileName()));
                 return;
             }
@@ -924,7 +923,7 @@ public final class MainController {
             return;
         }
         for (Path f : files) {
-            if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && WindowsShell.isRunning(f)) {
+            if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && SystemShell.isRunning(f)) {
                 Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.runningShort.text", f.getFileName().toString()));
                 return;
             }
@@ -958,7 +957,7 @@ public final class MainController {
         }
         for (PatchRecord r : outdated) {
             Path f = Path.of(r.file());
-            if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && WindowsShell.isRunning(f)) {
+            if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && SystemShell.isRunning(f)) {
                 Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.runningShort.text", r.gameName()));
                 return;
             }
@@ -1060,7 +1059,7 @@ public final class MainController {
     @FXML
     private void onOpenFolder() {
         if (currentGame != null) {
-            WindowsShell.reveal(currentGame.installDir());
+            SystemShell.reveal(currentGame.installDir());
         }
     }
 
@@ -1147,6 +1146,11 @@ public final class MainController {
     }
 
     private void offerElevation(String message) {
+        if (!SystemShell.canElevate()) {
+            // UAC є лише у Windows; на Linux просто повідомляємо, що немає прав на запис
+            Dialogs.error(stage, I18n.t("dialog.stopped.header"), message);
+            return;
+        }
         if (Dialogs.confirm(stage, I18n.t("dialog.admin.header"), I18n.t("dialog.admin.text", message),
                 I18n.t("dialog.admin.yes"))) {
             if (WindowsShell.relaunchElevated()) {
@@ -1223,11 +1227,13 @@ public final class MainController {
         Task<boolean[]> task = new Task<>() {
             @Override
             protected boolean[] call() {
-                return new boolean[]{WindowsShell.isElevated(), Autostart.isEnabled()};
+                return new boolean[]{SystemShell.isElevated(), Autostart.isEnabled()};
             }
         };
         task.setOnSucceeded(e -> {
             adminLabel.setText(I18n.t(task.getValue()[0] ? "status.admin.yes" : "status.admin.no"));
+            adminLabel.setVisible(SystemShell.canElevate()); // права адміністратора мають сенс лише у Windows
+            adminLabel.setManaged(SystemShell.canElevate());
             updatingAutostart = true;
             autostartCheck.setSelected(task.getValue()[1]);
             updatingAutostart = false;
@@ -1437,24 +1443,4 @@ public final class MainController {
         poll[0].play();
     }
 
-    /** Малює іконку: у .png (256×256) або у .ico (16…256 px) — для інсталятора. */
-    private void renderIconAndExit(Path target) {
-        try {
-            SnapshotParameters params = new SnapshotParameters();
-            params.setFill(Color.TRANSPARENT);
-            if (target.toString().toLowerCase(Locale.ROOT).endsWith(".ico")) {
-                List<IcoWriter.Entry> entries = new ArrayList<>();
-                for (int size : new int[]{16, 24, 32, 48, 64, 128, 256}) {
-                    entries.add(new IcoWriter.Entry(size, PngWriter.encode(AppIcon.create(size).snapshot(params, null))));
-                }
-                IcoWriter.write(entries, target);
-            } else {
-                PngWriter.write(AppIcon.create(256).snapshot(params, null), target);
-            }
-            System.out.println("Icon saved: " + target.toAbsolutePath());
-        } catch (IOException ex) {
-            System.err.println("Icon render failed: " + ex);
-        }
-        Platform.exit();
-    }
 }

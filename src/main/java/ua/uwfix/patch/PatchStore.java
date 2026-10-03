@@ -3,6 +3,7 @@ package ua.uwfix.patch;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
+import ua.uwfix.system.Os;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,9 +45,15 @@ public final class PatchStore {
         if (override != null && !override.isBlank()) {
             return Path.of(override);
         }
-        String appData = System.getenv("APPDATA");
-        Path base = appData != null ? Path.of(appData) : Path.of(System.getProperty("user.home"));
-        return base.resolve("UWFix");
+        if (Os.isWindows()) {
+            String appData = System.getenv("APPDATA");
+            Path base = appData != null ? Path.of(appData) : Path.of(System.getProperty("user.home"));
+            return base.resolve("UWFix");
+        }
+        // Linux: стандарт XDG — ~/.config/uwfix
+        String xdg = System.getenv("XDG_CONFIG_HOME");
+        Path config = xdg != null && !xdg.isBlank() ? Path.of(xdg) : Path.of(System.getProperty("user.home"), ".config");
+        return config.resolve("uwfix");
     }
 
     public static PatchStore openDefault() {
@@ -150,8 +157,9 @@ public final class PatchStore {
         }
     }
 
-    /** Шляхи у Windows нечутливі до регістру — порівнюємо в нижньому регістрі. */
+    /** Шляхи у Windows нечутливі до регістру — там порівнюємо в нижньому регістрі; у Linux — як є. */
     private static String key(Path path) {
-        return path.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
+        String normalized = path.toAbsolutePath().normalize().toString();
+        return Os.isWindows() ? normalized.toLowerCase(Locale.ROOT) : normalized;
     }
 }

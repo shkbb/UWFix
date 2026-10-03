@@ -1,6 +1,7 @@
 package ua.uwfix;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -9,6 +10,7 @@ import javafx.stage.Stage;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.i18n.Language;
 import ua.uwfix.ui.AppContext;
+import ua.uwfix.ui.AppIcon;
 import ua.uwfix.ui.MainController;
 
 import java.io.IOException;
@@ -31,6 +33,13 @@ public final class App extends Application {
     public void start(Stage stage) throws Exception {
         this.stage = stage;
         context = AppContext.create(getParameters().getRaw());
+        if (context.options().renderIcon() != null) {
+            // Збирання інсталятора: лише малюємо іконку, вікно не показуємо
+            AppIcon.writeIconFile(context.options().renderIcon());
+            System.out.println("Icon saved: " + context.options().renderIcon().toAbsolutePath());
+            Platform.exit();
+            return;
+        }
         I18n.setLanguage(Language.detect(context.store().state().language()));
 
         stage.setMinWidth(960);

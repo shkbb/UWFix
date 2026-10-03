@@ -1,5 +1,7 @@
 package ua.uwfix.analysis;
 
+import ua.uwfix.util.PathsCi;
+
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -34,46 +36,45 @@ public final class EngineDetector {
     }
 
     public static Engine detect(Path gameDir) {
-        if (Files.isRegularFile(gameDir.resolve("UnityPlayer.dll"))) {
-            return Files.isRegularFile(gameDir.resolve("GameAssembly.dll")) ? Engine.UNITY_IL2CPP : Engine.UNITY_MONO;
+        if (PathsCi.isFile(gameDir, "UnityPlayer.dll")) {
+            return PathsCi.isFile(gameDir, "GameAssembly.dll") ? Engine.UNITY_IL2CPP : Engine.UNITY_MONO;
         }
         if (isRedEngine(gameDir)) {
             return Engine.RED_ENGINE;
         }
-        if (Files.isRegularFile(gameDir.resolve("game").resolve("bin").resolve("win64").resolve("engine2.dll"))) {
+        if (PathsCi.isFile(gameDir, "game/bin/win64/engine2.dll")) {
             return Engine.SOURCE_2;
         }
-        if (Files.isRegularFile(gameDir.resolve("bin").resolve("engine.dll"))) {
+        if (PathsCi.isFile(gameDir, "bin/engine.dll")) {
             return Engine.SOURCE;
         }
-        if (Files.isRegularFile(gameDir.resolve("re_chunk_000.pak"))) {
+        if (PathsCi.isFile(gameDir, "re_chunk_000.pak")) {
             return Engine.RE_ENGINE;
         }
         // nativePC, nativePC_MT (Resident Evil 5), nativeDX10, nativeDX11x64
         if (hasDirectory(gameDir, "nativepc", 1) || hasDirectory(gameDir, "nativedx", 1)) {
             return Engine.MT_FRAMEWORK;
         }
-        if (Files.isDirectory(gameDir.resolve("Engine").resolve("Binaries")) || hasShippingExe(gameDir)
+        if (PathsCi.isDirectory(gameDir, "Engine/Binaries") || hasShippingExe(gameDir)
                 || unrealProjectFolder(gameDir) != null) {
             return Engine.UNREAL_4_5;
         }
         if (hasDirectory(gameDir, "cookedpc", 3)) {
             return Engine.UNREAL_3;
         }
-        if (hasFile(gameDir, "*.rpf")) {
+        if (hasFile(gameDir, ".rpf")) {
             return Engine.RAGE;
         }
-        if (Files.isRegularFile(gameDir.resolve("bin64").resolve("CrySystem.dll"))
-                || Files.isRegularFile(gameDir.resolve("bin").resolve("win_x64").resolve("CrySystem.dll"))) {
+        if (PathsCi.isFile(gameDir, "bin64/CrySystem.dll") || PathsCi.isFile(gameDir, "bin/win_x64/CrySystem.dll")) {
             return Engine.CRYENGINE;
         }
-        if (hasFile(gameDir.resolve("Data"), "*.esm")) {
+        if (hasFile(PathsCi.resolve(gameDir, "Data"), ".esm")) {
             return Engine.CREATION;
         }
-        if (Files.isRegularFile(gameDir.resolve("Data").resolve("initfs_Win32"))) {
+        if (PathsCi.isFile(gameDir, "Data/initfs_Win32")) {
             return Engine.FROSTBITE;
         }
-        if (Files.isRegularFile(gameDir.resolve("data.win"))) {
+        if (PathsCi.isFile(gameDir, "data.win")) {
             return Engine.GAMEMAKER;
         }
         if (isGodot(gameDir)) {
@@ -84,10 +85,8 @@ public final class EngineDetector {
 
     /** The Witcher 3 і Cyberpunk 2077: bin\x64\*.exe поруч з папкою ресурсів. */
     private static boolean isRedEngine(Path dir) {
-        boolean hasBin = Files.isDirectory(dir.resolve("bin").resolve("x64"))
-                || Files.isDirectory(dir.resolve("bin").resolve("x64_dx12"));
-        boolean hasContent = Files.isDirectory(dir.resolve("content"))
-                || Files.isDirectory(dir.resolve("archive").resolve("pc").resolve("content"));
+        boolean hasBin = PathsCi.isDirectory(dir, "bin/x64") || PathsCi.isDirectory(dir, "bin/x64_dx12");
+        boolean hasContent = PathsCi.isDirectory(dir, "content") || PathsCi.isDirectory(dir, "archive/pc/content");
         return hasBin && hasContent;
     }
 
@@ -115,7 +114,7 @@ public final class EngineDetector {
         try (DirectoryStream<Path> dirs = Files.newDirectoryStream(gameDir, Files::isDirectory)) {
             for (Path dir : dirs) {
                 if (!dir.getFileName().toString().equalsIgnoreCase("Engine")
-                        && Files.isDirectory(dir.resolve("Content").resolve("Paks"))) {
+                        && PathsCi.isDirectory(dir, "Content/Paks")) {
                     return dir;
                 }
             }
@@ -148,15 +147,20 @@ public final class EngineDetector {
         }
     }
 
-    /** Чи є в папці (без підпапок) файл за маскою, наприклад «*.rpf». */
-    private static boolean hasFile(Path dir, String glob) {
+    /** Чи є в папці (без підпапок) файл з таким розширенням, наприклад «.rpf» (регістр не важливий). */
+    private static boolean hasFile(Path dir, String extension) {
         if (!Files.isDirectory(dir)) {
             return false;
         }
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(dir, glob)) {
-            return files.iterator().hasNext();
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(dir)) {
+            for (Path f : files) {
+                if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(extension) && Files.isRegularFile(f)) {
+                    return true;
+                }
+            }
         } catch (IOException e) {
             return false;
         }
+        return false;
     }
 }

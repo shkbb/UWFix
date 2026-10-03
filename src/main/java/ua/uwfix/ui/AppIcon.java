@@ -2,6 +2,7 @@ package ua.uwfix.ui;
 
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
 import javafx.scene.paint.LinearGradient;
@@ -9,15 +10,39 @@ import javafx.scene.paint.Stop;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 /**
  * Іконка програми, намальована засобами JavaFX: ультраширокий екран,
  * з якого «розсуваються» стрілки — смуги зникають.
  */
-final class AppIcon {
+public final class AppIcon {
 
     private static final Color ACCENT = Color.web("#f2a93b");
 
     private AppIcon() {
+    }
+
+    /**
+     * Записує іконку у файл: .png (256×256) або .ico (16…256 px) — для інсталятора.
+     * Вікно при цьому не відкривається: знімок робиться з вузла поза сценою.
+     */
+    public static void writeIconFile(Path target) throws IOException {
+        SnapshotParameters params = new SnapshotParameters();
+        params.setFill(Color.TRANSPARENT);
+        if (target.toString().toLowerCase(Locale.ROOT).endsWith(".ico")) {
+            List<IcoWriter.Entry> entries = new ArrayList<>();
+            for (int size : new int[]{16, 24, 32, 48, 64, 128, 256}) {
+                entries.add(new IcoWriter.Entry(size, PngWriter.encode(create(size).snapshot(params, null))));
+            }
+            IcoWriter.write(entries, target);
+        } else {
+            PngWriter.write(create(256).snapshot(params, null), target);
+        }
     }
 
     static Node create(double size) {
