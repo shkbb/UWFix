@@ -42,6 +42,7 @@ not taken from a fixed table.
 - **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at Windows sign-in.
 - **Anti-cheat warning** (Easy Anti-Cheat, BattlEye, VAC…): modifying online games is risky for your account.
 - **Languages**: English and Ukrainian, switchable on the fly.
+- **Self-update**: at startup UWFix checks GitHub for a new version; one click downloads it, verifies the SHA-256 checksum and restarts into the new version — no need to download it manually again.
 
 ## Limitations
 
@@ -109,6 +110,7 @@ src/main/java/ua/uwfix/
 ├── patch/                    Patcher (patch, restore, re-apply), PatchStore (state in JSON)
 ├── cli/                      ReapplyCommand — silent --reapply mode
 ├── i18n/                     I18n, Language — translations (messages_en/uk.properties)
+├── update/                   UpdateChecker (GitHub Releases API), UpdateInstaller (download, SHA-256, replace)
 ├── system/                   monitors, administrator rights, autostart, Explorer
 └── ui/                       MainController + main.fxml + style.css (MVC), dialogs, cells
 ```
@@ -119,6 +121,7 @@ flowchart LR
     UI --> AN["analysis: GameAnalyzer"]
     UI --> PA["patch: Patcher"]
     UI --> I18N["i18n: I18n"]
+    UI --> UPD["update: UpdateChecker<br/>UpdateInstaller"]
     LIB --> ST["SteamScanner<br/>VdfParser"]
     LIB --> EP["EpicScanner"]
     LIB --> GOG["GogScanner / UbisoftScanner<br/>WindowsRegistry"]
@@ -130,10 +133,10 @@ flowchart LR
 
 ## Testing
 
-105 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+128 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
-and translation completeness (same keys and parameters in both languages).
+translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder).
 
 Search algorithms on 128 MB of machine-code-like data (`mvnw test -Pbenchmark`):
 
