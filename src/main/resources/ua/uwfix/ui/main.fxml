@@ -88,10 +88,13 @@
                 </VBox>
 
                 <VBox fx:id="detailsPane" spacing="12" visible="false">
-                    <VBox spacing="2">
-                        <Label fx:id="gameTitle" styleClass="game-title" wrapText="true"/>
-                        <Hyperlink fx:id="gamePath" onAction="#onOpenFolder" styleClass="path-link"/>
-                    </VBox>
+                    <HBox spacing="14" alignment="CENTER_LEFT">
+                        <StackPane fx:id="gameIconBox" minWidth="48" minHeight="48" maxWidth="48" maxHeight="48"/>
+                        <VBox spacing="2" HBox.hgrow="ALWAYS">
+                            <Label fx:id="gameTitle" styleClass="game-title" wrapText="true"/>
+                            <Hyperlink fx:id="gamePath" onAction="#onOpenFolder" styleClass="path-link"/>
+                        </VBox>
+                    </HBox>
                     <FlowPane fx:id="chips" hgap="8" vgap="6"/>
 
                     <HBox fx:id="statusCard" styleClass="status-card, status-idle" spacing="14" alignment="CENTER_LEFT">

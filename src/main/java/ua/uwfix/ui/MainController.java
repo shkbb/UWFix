@@ -29,6 +29,7 @@ import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.transform.Transform;
@@ -119,6 +120,7 @@ public final class MainController {
     @FXML private Label placeholderText;
     // ---- деталі гри
     @FXML private VBox detailsPane;
+    @FXML private StackPane gameIconBox;
     @FXML private Label gameTitle;
     @FXML private Hyperlink gamePath;
     @FXML private FlowPane chips;
@@ -155,6 +157,7 @@ public final class MainController {
     private boolean updatingCombo;
     private boolean updatingAutostart;
     private boolean updatedNoticeShown;
+    private final PauseTransition iconRefresh = new PauseTransition(Duration.millis(120));
     private RatioOption lastRatioOption;
 
     public MainController(AppContext context, Stage stage, Consumer<String> reloadUi) {
@@ -171,6 +174,12 @@ public final class MainController {
     private void initialize() {
         setupGameList();
         setupFileTable();
+        // Іконки довантажуються у фоні; щоб не перемальовувати список на кожну, збираємо їх пачкою
+        iconRefresh.setOnFinished(e -> {
+            gameList.refresh();
+            updateDetailsIcon();
+        });
+        context.icons().setOnLoaded(iconRefresh::playFromStart);
 
         ratioCombo.getSelectionModel().selectedItemProperty().addListener((o, old, now) -> onRatioChanged(old, now));
         languageCombo.getItems().setAll(Language.values());
@@ -359,6 +368,7 @@ public final class MainController {
         gameList.setItems(filteredGames);
         gameList.setCellFactory(list -> new GameCell(
                 g -> badges.getOrDefault(g.id(), GameCell.Badge.NONE),
+                context.icons()::get,
                 g -> WindowsShell.reveal(g.installDir()),
                 this::removeManualGame));
         gameList.getSelectionModel().selectedItemProperty().addListener((o, old, game) -> onGameSelected(game));
@@ -631,6 +641,7 @@ public final class MainController {
         placeholder.setVisible(false);
         detailsPane.setVisible(true);
         gameTitle.setText(game.name());
+        updateDetailsIcon();
         gamePath.setText(game.installDir().toString());
         chips.getChildren().setAll(chip(game.source().displayName(), "chip"));
         engineHint.setText("");
@@ -1070,6 +1081,13 @@ public final class MainController {
         statusCard.getStyleClass().add(styleClass);
         statusTitle.setText(title);
         statusText.setText(text);
+    }
+
+    private void updateDetailsIcon() {
+        if (currentGame != null) {
+            gameIconBox.getChildren().setAll(
+                    GameCell.iconNode(context.icons().get(currentGame), currentGame.name(), 48));
+        }
     }
 
     private static Label chip(String text, String styleClass) {

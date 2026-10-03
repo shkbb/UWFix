@@ -180,7 +180,7 @@ public final class GameAnalyzer {
         return result;
     }
 
-    static boolean isInteresting(String fileName) {
+    public static boolean isInteresting(String fileName) {
         String name = fileName.toLowerCase(Locale.ROOT);
         if (!name.endsWith(".exe") && !name.endsWith(".dll")) {
             return false;
@@ -196,7 +196,7 @@ public final class GameAnalyzer {
         return true;
     }
 
-    static boolean isAuxiliary(String fileName) {
+    public static boolean isAuxiliary(String fileName) {
         String name = fileName.toLowerCase(Locale.ROOT);
         for (String marker : AUXILIARY_MARKERS) {
             if (name.contains(marker)) {

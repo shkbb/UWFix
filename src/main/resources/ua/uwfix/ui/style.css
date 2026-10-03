@@ -186,6 +186,11 @@
     -fx-text-overrun: ellipsis;
 }
 
+.game-icon-letter {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
 .game-source {
     -fx-text-fill: -uw-muted;
     -fx-font-size: 11.5px;

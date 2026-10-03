@@ -25,6 +25,7 @@ public final class AppContext {
     private final GameAnalyzer analyzer;
     private final GameLibrary library;
     private final UpdateChecker updateChecker = new UpdateChecker();
+    private final GameIcons icons = new GameIcons();
     private final ExecutorService executor;
     private final LaunchOptions options;
     private final List<String> rawArgs;
@@ -83,6 +84,11 @@ public final class AppContext {
         return updateChecker;
     }
 
+    /** Іконки ігор — спільні для всіх екземплярів вікна (після зміни мови не вантажаться знову). */
+    GameIcons icons() {
+        return icons;
+    }
+
     public ExecutorService executor() {
         return executor;
     }
@@ -120,6 +126,7 @@ public final class AppContext {
 
     public void shutdown() {
         executor.shutdownNow();
+        icons.shutdown();
     }
 
     /**

@@ -85,7 +85,7 @@ public final class SteamScanner implements GameScanner {
     }
 
     /** Папка Steam з реєстру або стандартне розташування. */
-    static Path findSteamRoot() {
+    public static Path findSteamRoot() {
         String path = WindowsRegistry.readValues("HKCU\\Software\\Valve\\Steam").get("SteamPath");
         if (path == null) {
             path = WindowsRegistry.readValues("HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam").get("InstallPath");
