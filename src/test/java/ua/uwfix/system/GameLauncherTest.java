@@ -21,13 +21,14 @@ class GameLauncherTest {
     Path dir;
 
     @Test
-    void launcherUris() {
-        assertEquals("steam://rungameid/292030", GameLauncher.launcherUri(game(GameSource.STEAM, "292030")));
+    void launcherUrisOnWindows() {
+        assertEquals("steam://rungameid/292030", GameLauncher.launcherUri(game(GameSource.STEAM, "292030"), Os.WINDOWS));
         assertEquals("com.epicgames.launcher://apps/fa4240e5%3Abd2?action=launch&silent=true",
-                GameLauncher.launcherUri(game(GameSource.EPIC, "fa4240e5:bd2")));
-        assertEquals("uplay://launch/635/0", GameLauncher.launcherUri(game(GameSource.UBISOFT, "635")));
-        assertNull(GameLauncher.launcherUri(game(GameSource.GOG, "1207664643")), "GOG запускаємо напряму");
-        assertNull(GameLauncher.launcherUri(game(GameSource.STEAM, "1; calc")), "некоректний AppID не передаємо");
+                GameLauncher.launcherUri(game(GameSource.EPIC, "fa4240e5:bd2"), Os.WINDOWS));
+        assertEquals("uplay://launch/635/0", GameLauncher.launcherUri(game(GameSource.UBISOFT, "635"), Os.WINDOWS));
+        assertNull(GameLauncher.launcherUri(game(GameSource.GOG, "1207664643"), Os.WINDOWS), "GOG запускаємо напряму");
+        assertNull(GameLauncher.launcherUri(game(GameSource.STEAM, "1; calc"), Os.WINDOWS),
+                "некоректний AppID не передаємо");
         assertTrue(GameLauncher.usesLauncher(game(GameSource.STEAM, "10")));
         assertFalse(GameLauncher.usesLauncher(game(GameSource.MANUAL, "x")));
     }
