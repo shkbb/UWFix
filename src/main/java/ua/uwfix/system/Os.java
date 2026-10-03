@@ -1,5 +1,6 @@
 package ua.uwfix.system;
 
+import java.nio.file.Path;
 import java.util.Locale;
 
 /** Операційна система, на якій працює програма. */
@@ -18,6 +19,20 @@ public enum Os {
 
     public static boolean isLinux() {
         return CURRENT == LINUX;
+    }
+
+    /** Домашня папка користувача. */
+    public static Path home() {
+        return Path.of(System.getProperty("user.home"));
+    }
+
+    /**
+     * Папка налаштувань програм у Linux за стандартом XDG: {@code $XDG_CONFIG_HOME}
+     * або {@code ~/.config}. Там лежать налаштування UWFix, автозапуск, налаштування ігор Unity і Unreal.
+     */
+    public static Path configHome() {
+        String xdg = System.getenv("XDG_CONFIG_HOME");
+        return xdg != null && !xdg.isBlank() ? Path.of(xdg) : home().resolve(".config");
     }
 
     static Os detect(String osName) {

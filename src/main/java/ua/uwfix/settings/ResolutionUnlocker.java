@@ -1,8 +1,11 @@
 package ua.uwfix.settings;
 
+import ua.uwfix.analysis.BinaryFormat;
 import ua.uwfix.analysis.EngineDetector;
+import ua.uwfix.analysis.GameAnalyzer;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
+import ua.uwfix.model.Game;
 import ua.uwfix.scan.WindowsRegistry;
 import ua.uwfix.system.Os;
 
@@ -23,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -39,15 +43,23 @@ import java.util.stream.Stream;
  * </ul>
  * Налаштування з'являються після першого запуску гри — до того змінювати нічого.
  * <p>
- * На Linux ігри працюють через Wine/Proton, тож ті самі папки й реєстр шукаються всередині
- * префікса гри ({@link #forPrefix(WinePrefix)}).
+ * У Linux є два випадки ({@link #forLinuxGame(Game)}):
+ * <ul>
+ *   <li>версія гри для Windows працює через Wine/Proton — ті самі папки й реєстр шукаються
+ *       всередині префікса гри ({@link #forPrefix(WinePrefix)});</li>
+ *   <li>нативна версія для Linux ({@link #forLinuxNative(Path)}): Unreal зберігає налаштування в
+ *       {@code ~/.config/Epic/<Проєкт>/Saved/Config/Linux}, Unity — у XML-файлі
+ *       {@code ~/.config/unity3d/<компанія>/<гра>/prefs} (див. {@link UnityPrefsXml}).</li>
+ * </ul>
  */
 public final class ResolutionUnlocker {
 
     public static final String BACKUP_SUFFIX = ".uwfix-backup";
 
-    private static final Pattern SHIPPING_EXE = Pattern.compile("(?i)(.+)-(win64|wingdk)-shipping\\.exe");
-    private static final List<String> UNREAL_PLATFORMS = List.of("Windows", "WindowsNoEditor", "WinGDK", "WindowsClient");
+    private static final Pattern SHIPPING_EXE =
+            Pattern.compile("(?i)(.+)-(win64|wingdk|linux|linuxarm64)-shipping(\\.exe)?");
+    private static final List<String> UNREAL_PLATFORMS = List.of(
+            "Windows", "WindowsNoEditor", "WinGDK", "WindowsClient", "Linux", "LinuxNoEditor", "LinuxArm64");
 
     /**
      * Результат пошуку налаштувань.
@@ -61,6 +73,8 @@ public final class ResolutionUnlocker {
     private final Path localAppData;
     private final Path documents;
     private final RegistryAccess registry;
+    /** Нативні ігри Linux: папка ~/.config/unity3d; {@code null} — Unity зберігає налаштування в реєстрі. */
+    private final Path unityPrefsDir;
 
     public ResolutionUnlocker() {
         this(Path.of(System.getenv().getOrDefault("LOCALAPPDATA",
@@ -74,14 +88,46 @@ public final class ResolutionUnlocker {
     }
 
     public ResolutionUnlocker(Path localAppData, Path documents, RegistryAccess registry) {
+        this(localAppData, documents, registry, null);
+    }
+
+    private ResolutionUnlocker(Path localAppData, Path documents, RegistryAccess registry, Path unityPrefsDir) {
         this.localAppData = localAppData;
         this.documents = documents;
         this.registry = registry;
+        this.unityPrefsDir = unityPrefsDir;
     }
 
     /** Налаштування гри, що працює в префіксі Wine/Proton. */
     public static ResolutionUnlocker forPrefix(WinePrefix prefix) {
         return new ResolutionUnlocker(prefix.localAppData(), prefix.documents(), new WineRegistry(prefix.userReg()));
+    }
+
+    /**
+     * Налаштування нативних ігор Linux. Роль %LOCALAPPDATA% для Unreal виконує {@code ~/.config/Epic},
+     * реєстру немає — Unity пише XML у {@code ~/.config/unity3d}.
+     *
+     * @param configHome {@code ~/.config} (або {@code $XDG_CONFIG_HOME})
+     */
+    public static ResolutionUnlocker forLinuxNative(Path configHome) {
+        return new ResolutionUnlocker(configHome.resolve("Epic"), configHome, RegistryAccess.NONE,
+                configHome.resolve("unity3d"));
+    }
+
+    /**
+     * Linux: де шукати налаштування гри. Нативна гра (ELF) — у домашній папці; версія для Windows —
+     * у префіксі Wine/Proton; {@code null}, якщо гра для Windows ще не запускалась (префікса немає).
+     */
+    public static ResolutionUnlocker forLinuxGame(Game game) {
+        return forLinuxGame(game, () -> WinePrefix.forGame(game), Os.configHome());
+    }
+
+    static ResolutionUnlocker forLinuxGame(Game game, Supplier<Optional<WinePrefix>> prefix, Path configHome) {
+        Optional<BinaryFormat> format = GameAnalyzer.mainProgramFormat(game.installDir());
+        if (format.isPresent() && format.get() == BinaryFormat.ELF) {
+            return forLinuxNative(configHome);
+        }
+        return prefix.get().map(ResolutionUnlocker::forPrefix).orElse(null);
     }
 
     public Lookup lookup(Path installDir) {
@@ -113,7 +159,10 @@ public final class ResolutionUnlocker {
         }
         Optional<String[]> unity = unityAppInfo(installDir);
         if (unity.isPresent()) {
-            return new Lookup(true, unityRegistry(unity.get()[0], unity.get()[1]).orElse(null));
+            Optional<GameSettings> found = unityPrefsDir != null
+                    ? unityXml(unity.get()[0], unity.get()[1])
+                    : unityRegistry(unity.get()[0], unity.get()[1]);
+            return new Lookup(true, found.orElse(null));
         }
         List<Path> sourceMods = sourceModFolders(installDir);
         if (!sourceMods.isEmpty()) {
@@ -421,6 +470,24 @@ public final class ResolutionUnlocker {
         return Optional.of(new GameSettings(GameSettings.Kind.UNITY_REGISTRY, null, key, current));
     }
 
+    /** Нативна Unity-гра в Linux: XML-файл prefs. */
+    private Optional<GameSettings> unityXml(String company, String product) {
+        Path file = UnityPrefsXml.file(unityPrefsDir, company, product);
+        if (!Files.isRegularFile(file)) {
+            return Optional.empty(); // гру ще не запускали
+        }
+        AspectRatio current = null;
+        try {
+            String xml = TextFile.read(file).text();
+            Integer w = UnityPrefsXml.getInt(xml, UnityPrefs.WIDTH);
+            Integer h = UnityPrefsXml.getInt(xml, UnityPrefs.HEIGHT);
+            current = w == null || h == null ? null : ratio(String.valueOf(w), String.valueOf(h));
+        } catch (IOException e) {
+            // покажемо лише шлях
+        }
+        return Optional.of(new GameSettings(GameSettings.Kind.UNITY_PREFS_XML, file, null, current));
+    }
+
     // ------------------------------------------------------------------ запис
 
     /** Записує роздільну здатність у налаштування гри. Перед першою зміною ini-файлу робить копію. */
@@ -460,6 +527,16 @@ public final class ResolutionUnlocker {
                 if (!ok) {
                     throw new IOException(I18n.t("error.settings.registry", key));
                 }
+            }
+            case UNITY_PREFS_XML -> {
+                Path file = settings.file();
+                backupOnce(file);
+                TextFile xml = TextFile.read(file);
+                Map<String, Integer> always = new LinkedHashMap<>();
+                always.put(UnityPrefs.WIDTH, target.width());
+                always.put(UnityPrefs.HEIGHT, target.height());
+                writePreservingReadOnly(file, xml,
+                        UnityPrefsXml.update(xml.text(), always, Map.of(UnityPrefs.USE_NATIVE, 0)));
             }
             case SOURCE_VIDEO_TXT -> {
                 Path file = settings.file();

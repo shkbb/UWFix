@@ -16,6 +16,19 @@ public interface RegistryAccess {
     /** Записує 32-бітне число (REG_DWORD). */
     boolean setDword(String key, String name, long value);
 
+    /** Реєстру немає (нативні ігри Linux): нічого не читається і не записується. */
+    RegistryAccess NONE = new RegistryAccess() {
+        @Override
+        public Map<String, String> readValues(String key) {
+            return Map.of();
+        }
+
+        @Override
+        public boolean setDword(String key, String name, long value) {
+            return false;
+        }
+    };
+
     /** Реєстр Windows. */
     RegistryAccess WINDOWS = new RegistryAccess() {
         @Override

@@ -105,11 +105,7 @@ public final class Autostart {
 
     /** {@code $XDG_CONFIG_HOME/autostart} або {@code ~/.config/autostart}. */
     static Path desktopFile() {
-        String xdg = System.getenv("XDG_CONFIG_HOME");
-        Path config = xdg != null && !xdg.isBlank()
-                ? Path.of(xdg)
-                : Path.of(System.getProperty("user.home"), ".config");
-        return config.resolve("autostart").resolve(DESKTOP_FILE);
+        return Os.configHome().resolve("autostart").resolve(DESKTOP_FILE);
     }
 
     static String desktopEntry(List<String> command) {
