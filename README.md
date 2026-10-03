@@ -1,63 +1,79 @@
-# UWFix — катсцени без чорних смуг на ультрашироких моніторах
+# UWFix — ultrawide cutscenes without black bars
 
-UWFix знаходить встановлені ігри (Steam, Epic Games, GOG, Ubisoft Connect) і однією кнопкою
-прибирає чорні смуги по боках у катсценах на моніторах 21:9 і 32:9.
+**English** · [Українська](README.uk.md)
 
-![Головне вікно](docs/screenshots/03-fixed.png)
+UWFix finds your installed games (Steam, Epic Games, GOG, Ubisoft Connect) and removes the black bars
+on the sides of cutscenes on 21:9 and 32:9 monitors — with one button.
 
-## Як це працює
+![UWFix main window](docs/screenshots/en/03-fixed.png)
 
-Більшість ігор зберігає співвідношення сторін катсцен як дробове число 16 / 9 = 1.7777778.
-У виконуваному файлі воно записане у форматі IEEE 754 (float, 4 байти, little-endian):
+**[⬇ Download the latest release](https://github.com/shkbb/UWFix/releases/latest)** — an installer or a portable version. Java is bundled, nothing else to install. Windows 10/11 x64.
 
-| Роздільна здатність | Співвідношення | Байти у файлі   |
-|---------------------|----------------|-----------------|
-| 1920×1080 (16:9)    | 1.778          | `39 8E E3 3F`   |
-| 2560×1080 (21:9)    | 2.370          | `26 B4 17 40`   |
-| 3440×1440 (21:9)    | 2.389          | `8E E3 18 40`   |
-| 3840×1600 (24:10)   | 2.400          | `9A 99 19 40`   |
-| 5120×1440 (32:9)    | 3.556          | `39 8E 63 40`   |
+## How it works
 
-Якщо замінити `39 8E E3 3F` на значення свого монітора, гра вважатиме, що катсцени зроблені
-під твій екран, і перестане додавати смуги. Так спільнота вручну виправляє ігри в hex-редакторі
-(наприклад, [UltraAspect](https://github.com/coralian/UltraAspect) для The Witcher 3).
-UWFix робить це автоматично й безпечно.
+Most games store the cutscene aspect ratio as a floating-point number 16 / 9 = 1.7777778.
+In the executable it is written in IEEE 754 format (float, 4 bytes, little-endian):
 
-## Можливості
+| Resolution          | Ratio | Bytes in the file |
+|---------------------|-------|-------------------|
+| 1920×1080 (16:9)    | 1.778 | `39 8E E3 3F`     |
+| 2560×1080 (21:9)    | 2.370 | `26 B4 17 40`     |
+| 3440×1440 (21:9)    | 2.389 | `8E E3 18 40`     |
+| 3840×1600 (24:10)   | 2.400 | `9A 99 19 40`     |
+| 5120×1440 (32:9)    | 3.556 | `39 8E 63 40`     |
 
-- **Пошук ігор**: Steam (усі бібліотеки на всіх дисках), Epic Games, GOG, Ubisoft Connect, а також ручне додавання будь-якої папки.
-- **Визначення монітора**: роздільна здатність береться автоматично з урахуванням масштабування Windows; можна обрати іншу або ввести свою.
-- **Аналіз гри**: знаходить .exe і .dll з числом 16:9, відкидає сторонні бібліотеки (Steam API, DirectX, PhysX…), визначає рушій (Unreal Engine 3/4/5, Unity, REDengine) і радить, які файли змінювати.
-- **Безпечна заміна**:
-  - перед зміною створюється резервна копія `*.uwfix-backup`;
-  - змінюються лише знайдені 4 (або 8) байтів, решта файлу не переписується;
-  - перед кожним записом перевіряється, що на місці саме очікувані байти;
-  - контрольна сума SHA-256 оригіналу й результату зберігається в стані програми.
-- **Відновлення оригіналу** однією кнопкою — навіть без резервної копії, бо програма знає всі змінені місця.
-- **Відстеження оновлень**: після оновлення гри (Steam замінює файл) програма помічає, що фікс злетів, і пропонує застосувати його знову. Можна ввімкнути автоматичне повторне застосування при вході у Windows.
-- **Попередження про античит** (Easy Anti-Cheat, BattlEye, VAC тощо): змінювати файли онлайн-ігор небезпечно для акаунта.
+Replace `39 8E E3 3F` with your monitor's value and the game believes the cutscenes were made for your
+screen, so it stops adding bars. The community does this by hand in a hex editor
+(e.g. [UltraAspect](https://github.com/coralian/UltraAspect) for The Witcher 3).
+UWFix does it automatically and safely. **Any resolution works** — the value is computed as width ÷ height,
+not taken from a fixed table.
 
-## Обмеження
+## Features
 
-- Метод працює, лише якщо гра зберігає 16:9 як готове число. Якщо співвідношення обчислюється інакше, UWFix покаже «16:9 не знайдено».
-- **Відеоролики, записані заздалегідь у 16:9, виправити неможливо**: у самому відео немає зображення по боках.
-- Після заміни в окремих іграх інтерфейс може розтягнутися. Тоді натисни «Відновити оригінал».
-- Ігри з Microsoft Store / Xbox Game Pass захищені від змін.
-- Не використовуй програму для онлайн-ігор з античитом.
+- **Game discovery**: Steam (all libraries on all drives), Epic Games, GOG, Ubisoft Connect, plus any folder added manually.
+- **Monitor detection**: the resolution is detected automatically, taking Windows scaling into account; you can pick another one or enter your own.
+- **Game analysis**: finds .exe and .dll files containing 16:9, skips third-party libraries (Steam API, DirectX, PhysX…), detects the engine (Unreal Engine 3/4/5, Unity, REDengine) and suggests which files to patch.
+- **Safe patching**:
+  - a backup `*.uwfix-backup` is created before any change;
+  - only the 4 (or 8) bytes found are changed, the rest of the file is not rewritten;
+  - before each write the expected bytes are verified;
+  - SHA-256 checksums of the original and the result are stored.
+- **One-click restore** — even without the backup, because UWFix knows every changed location.
+- **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at Windows sign-in.
+- **Anti-cheat warning** (Easy Anti-Cheat, BattlEye, VAC…): modifying online games is risky for your account.
+- **Languages**: English and Ukrainian, switchable on the fly.
 
-## Використання
+## Limitations
 
-1. Запусти `UWFix.exe` (портативна версія) або встанови програму інсталятором.
-2. Перевір угорі цільову роздільну здатність (за замовчуванням — твій монітор).
-3. Обери гру зліва й дочекайся аналізу файлів.
-4. Натисни **«Виправити катсцени»**.
-5. Якщо гра встановлена в `Program Files`, програма запропонує перезапуститися з правами адміністратора.
+- The method works only if the game stores 16:9 as a ready-made number. If the ratio is computed differently, UWFix will say “The 16:9 value was not found”.
+- **Pre-rendered 16:9 video cutscenes cannot be fixed**: there is no picture on the sides in the video itself.
+- In some games the UI may stretch after patching — just press “Restore original”.
+- UWFix changes the aspect ratio only; if a game does not offer your resolution in its settings, set it separately (usually in the game's config file).
+- Microsoft Store / Xbox Game Pass games are write-protected.
+- Do not use it for online games with anti-cheat.
 
-Дані програми: `%APPDATA%\UWFix\state.json` (стан і налаштування), `%APPDATA%\UWFix\reapply.log` (журнал автоперевірок).
+## Usage
 
-## Збирання з вихідного коду
+1. Run `UWFix.exe` (portable) or install it with the installer.
+2. Check the target resolution at the top (your monitor by default).
+3. Pick a game on the left and wait for the file analysis.
+4. Press **Fix cutscenes**.
+5. If the game is installed in `Program Files`, UWFix will offer to restart with administrator rights.
 
-Потрібна лише JDK 17 або новіша. Maven завантажиться автоматично (Maven Wrapper).
+App data: `%APPDATA%\UWFix\state.json` (state and settings), `%APPDATA%\UWFix\reapply.log` (automatic check log).
+
+<details>
+<summary>More screenshots</summary>
+
+| Game analysis | Anti-cheat warning |
+|---|---|
+| ![Analysis](docs/screenshots/en/02-analysis.png) | ![Anti-cheat](docs/screenshots/en/05-anticheat.png) |
+
+</details>
+
+## Building from source
+
+Only JDK 17 or newer is required. Maven is downloaded automatically (Maven Wrapper).
 
 ```bash
 mvnw javafx:run
@@ -68,45 +84,41 @@ mvnw test
 ```
 
 ```bash
-mvnw test -Pbenchmark
-```
-
-```bash
 powershell -ExecutionPolicy Bypass -File build-installer.ps1
 ```
 
-| Команда | Що робить |
-|---------|-----------|
-| `mvnw javafx:run` | запуск під час розробки |
-| `mvnw test` | модульні тести (JUnit 5) |
-| `mvnw test -Pbenchmark` | порівняння швидкості алгоритмів пошуку; результат у `target\benchmark-results.txt`; `-Dbench.file=шлях\до\гри.exe` — на справжньому файлі |
-| `build-installer.ps1` | портативна версія `dist\UWFix\UWFix.exe`, архів `.zip` та інсталятор `dist\UWFix-1.0.0.exe` (потрібен [WiX Toolset 3](https://github.com/wixtoolset/wix3/releases) у `tools\wix`) |
-| `make-screenshots.ps1` | знімки екрана для документації на демо-грі (справжні ігри не змінюються) |
+| Command | What it does |
+|---------|--------------|
+| `mvnw javafx:run` | run during development |
+| `mvnw test` | unit tests (JUnit 5) |
+| `mvnw test -Pbenchmark` | search algorithm benchmark; result in `target\benchmark-results.txt`; add `-Dbench.file=path\to\game.exe` to use a real file |
+| `build-installer.ps1` | portable `dist\UWFix\UWFix.exe`, a `.zip` and the installer `dist\UWFix-<version>.exe` (needs [WiX Toolset 3](https://github.com/wixtoolset/wix3/releases) in `tools\wix`) |
+| `make-screenshots.ps1` | documentation screenshots on demo games (real games are not touched) |
 
-## Структура проєкту
+## Project structure
 
 ```
 src/main/java/ua/uwfix/
-├── Main.java, App.java       точка входу і запуск JavaFX
+├── Main.java, App.java       entry point and JavaFX startup
 ├── model/                    AspectRatio, ValueFormat (IEEE 754), Game, GameSource
-├── search/                   алгоритми пошуку: NaiveSearch, KmpSearch, HorspoolSearch;
-│                             FileScanner — потокове сканування файлу блоками + SHA-256
-├── scan/                     пошук ігор: SteamScanner (парсер VDF), EpicScanner (JSON),
-│                             GogScanner, UbisoftScanner (реєстр через reg export), GameLibrary
-├── analysis/                 GameAnalyzer (вибір файлів), EngineDetector, AntiCheatDetector
-├── patch/                    Patcher (заміна, відновлення, повторне застосування), PatchStore (стан у JSON)
-├── cli/                      ReapplyCommand — тихий режим --reapply
-├── system/                   монітори, права адміністратора, автозапуск, Провідник
-└── ui/                       MainController + main.fxml + style.css (MVC), діалоги, комірки
+├── search/                   search algorithms: NaiveSearch, KmpSearch, HorspoolSearch;
+│                             FileScanner — streaming chunked file scan + SHA-256
+├── scan/                     game discovery: SteamScanner (VDF parser), EpicScanner (JSON),
+│                             GogScanner, UbisoftScanner (registry via reg export), GameLibrary
+├── analysis/                 GameAnalyzer (file selection), EngineDetector, AntiCheatDetector
+├── patch/                    Patcher (patch, restore, re-apply), PatchStore (state in JSON)
+├── cli/                      ReapplyCommand — silent --reapply mode
+├── i18n/                     I18n, Language — translations (messages_en/uk.properties)
+├── system/                   monitors, administrator rights, autostart, Explorer
+└── ui/                       MainController + main.fxml + style.css (MVC), dialogs, cells
 ```
-
-### Архітектура
 
 ```mermaid
 flowchart LR
     UI["ui: MainController<br/>main.fxml, style.css"] --> LIB["scan: GameLibrary"]
     UI --> AN["analysis: GameAnalyzer"]
     UI --> PA["patch: Patcher"]
+    UI --> I18N["i18n: I18n"]
     LIB --> ST["SteamScanner<br/>VdfParser"]
     LIB --> EP["EpicScanner"]
     LIB --> GOG["GogScanner / UbisoftScanner<br/>WindowsRegistry"]
@@ -116,25 +128,24 @@ flowchart LR
     CLI["cli: ReapplyCommand"] --> PA
 ```
 
-- **Модель** — `model`, `search`, `scan`, `analysis`, `patch`: не залежать від інтерфейсу, покриті тестами.
-- **Представлення** — `main.fxml` і `style.css`.
-- **Контролер** — `MainController`: обробляє дії користувача, запускає довгі операції у фоновому потоці (`javafx.concurrent.Task`), щоб вікно не зависало.
+## Testing
 
-## Тестування
+105 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
+different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
+and translation completeness (same keys and parameters in both languages).
 
-90 модульних тестів (JUnit 5): перетворення співвідношень у байти, три алгоритми пошуку (порівняння з еталоном на випадкових даних), потокове сканування з різними розмірами блоку, парсери VDF / .reg / JSON, вибір файлів для різних рушіїв, повний цикл «патч → оновлення гри → повторне застосування → відновлення», пошкоджений файл стану.
+Search algorithms on 128 MB of machine-code-like data (`mvnw test -Pbenchmark`):
 
-Порівняння алгоритмів на 128 МБ даних, схожих на машинний код (`mvnw test -Pbenchmark`):
+| Algorithm | 4-byte pattern | 8 bytes | 16 bytes |
+|-----------|---------------:|--------:|---------:|
+| Naive search | 1786 MB/s | 1905 MB/s | 736 MB/s |
+| Knuth–Morris–Pratt | 1443 MB/s | 1439 MB/s | 1455 MB/s |
+| Boyer–Moore–Horspool | 1546 MB/s | 2868 MB/s | 4628 MB/s |
 
-| Алгоритм | Шаблон 4 байти | 8 байтів | 16 байтів |
-|----------|---------------:|---------:|----------:|
-| Прямий перебір | 1786 МБ/с | 1905 МБ/с | 736 МБ/с |
-| Кнута–Морріса–Пратта | 1443 МБ/с | 1439 МБ/с | 1455 МБ/с |
-| Бойєра–Мура–Хорспула | 1546 МБ/с | 2868 МБ/с | 4628 МБ/с |
+For the short 16:9 pattern (4 bytes) all algorithms are limited by memory bandwidth. With longer patterns
+Horspool skips most of the data and becomes the fastest — that is why UWFix uses it.
 
-Для короткого шаблону 16:9 (4 байти) усі алгоритми впираються у швидкість пам'яті. Із довшим шаблоном
-алгоритм Хорспула пропускає більшу частину даних і стає найшвидшим. Тому програма використовує саме його.
-
-## Технології
+## Tech stack
 
 Java 17 · JavaFX 21 (FXML + CSS) · Gson · JUnit 5 · Maven · jpackage/jlink · WiX Toolset 3

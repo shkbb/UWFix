@@ -48,7 +48,10 @@ public final class AppContext {
     }
 
     public static AppContext create(List<String> args) {
-        return new AppContext(PatchStore.openDefault(), GameLibrary.withDefaultScanners(), LaunchOptions.parse(args));
+        LaunchOptions options = LaunchOptions.parse(args);
+        // У демо-режимі лаунчери не опитуються: у списку лише ігри, додані вручну (для знімків екрана)
+        GameLibrary library = options.demo() ? new GameLibrary(List.of()) : GameLibrary.withDefaultScanners();
+        return new AppContext(PatchStore.openDefault(), library, options);
     }
 
     public PatchStore store() {
@@ -94,16 +97,20 @@ public final class AppContext {
      * @param select     після запуску обрати гру, назва якої містить цей текст
      * @param action     перед знімком виконати дії через кому: «fix», «restore», «lang:en»
      * @param renderIcon намалювати іконку програми у PNG і завершити роботу
+     * @param demo       не шукати ігри в лаунчерах, показувати лише додані вручну
      */
-    public record LaunchOptions(Path snapshot, String select, String action, Path renderIcon) {
+    public record LaunchOptions(Path snapshot, String select, String action, Path renderIcon, boolean demo) {
 
         static LaunchOptions parse(List<String> args) {
             Path snapshot = null;
             String select = null;
             String action = null;
             Path renderIcon = null;
+            boolean demo = false;
             for (String arg : args) {
-                if (arg.startsWith("--snapshot=")) {
+                if (arg.equals("--demo")) {
+                    demo = true;
+                } else if (arg.startsWith("--snapshot=")) {
                     snapshot = Path.of(arg.substring("--snapshot=".length()));
                 } else if (arg.startsWith("--select=")) {
                     select = arg.substring("--select=".length());
@@ -113,7 +120,7 @@ public final class AppContext {
                     renderIcon = Path.of(arg.substring("--render-icon=".length()));
                 }
             }
-            return new LaunchOptions(snapshot, select, action, renderIcon);
+            return new LaunchOptions(snapshot, select, action, renderIcon, demo);
         }
     }
 }
