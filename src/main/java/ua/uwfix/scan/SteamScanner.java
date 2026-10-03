@@ -2,6 +2,7 @@ package ua.uwfix.scan;
 
 import ua.uwfix.model.Game;
 import ua.uwfix.model.GameSource;
+import ua.uwfix.system.Os;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -21,7 +22,8 @@ import java.util.Set;
  * <p>
  * Алгоритм:
  * <ol>
- *   <li>шлях до Steam береться з реєстру ({@code HKCU\Software\Valve\Steam → SteamPath});</li>
+ *   <li>шлях до Steam береться з реєстру ({@code HKCU\Software\Valve\Steam → SteamPath}),
+ *       у Linux — зі стандартних місць (звичайний Steam, Flatpak, Snap);</li>
  *   <li>з {@code steamapps\libraryfolders.vdf} читаються всі бібліотеки (диски) Steam;</li>
  *   <li>у кожній бібліотеці файл {@code steamapps\appmanifest_<AppID>.acf} описує одну гру:
  *       назву та папку в {@code steamapps\common}.</li>
@@ -63,12 +65,18 @@ public final class SteamScanner implements GameScanner {
 
     @Override
     public List<Game> scan() {
-        Path root = steamRootOverride != null ? steamRootOverride : findSteamRoot();
-        if (root == null) {
-            return List.of();
+        List<Path> roots = steamRootOverride != null ? List.of(steamRootOverride) : findSteamRoots();
+        Set<Path> libraries = new LinkedHashSet<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (Path root : roots) {
+            for (Path library : readLibraries(root)) {
+                if (seen.add(realKey(library))) {
+                    libraries.add(library);
+                }
+            }
         }
         Map<String, Game> games = new LinkedHashMap<>();
-        for (Path library : readLibraries(root)) {
+        for (Path library : libraries) {
             Path steamapps = library.resolve("steamapps");
             try (DirectoryStream<Path> manifests = Files.newDirectoryStream(steamapps, "appmanifest_*.acf")) {
                 for (Path manifest : manifests) {
@@ -84,8 +92,51 @@ public final class SteamScanner implements GameScanner {
         return new ArrayList<>(games.values());
     }
 
-    /** Папка Steam з реєстру або стандартне розташування. */
+    /** Основна папка Steam або {@code null}. */
     public static Path findSteamRoot() {
+        List<Path> roots = findSteamRoots();
+        return roots.isEmpty() ? null : roots.get(0);
+    }
+
+    /**
+     * Усі встановлені копії Steam. У Windows — одна (з реєстру). У Linux Steam буває звичайний,
+     * Flatpak чи Snap, а ~/.steam/steam — лише посилання на ~/.local/share/Steam, тож дублікати відкидаються.
+     */
+    public static List<Path> findSteamRoots() {
+        if (Os.isWindows()) {
+            Path root = findWindowsSteamRoot();
+            return root == null ? List.of() : List.of(root);
+        }
+        return linuxSteamRoots(Path.of(System.getProperty("user.home")));
+    }
+
+    static List<Path> linuxSteamRoots(Path home) {
+        List<Path> candidates = List.of(
+                home.resolve(".local/share/Steam"),
+                home.resolve(".steam/steam"),
+                home.resolve(".steam/root"),
+                home.resolve(".var/app/com.valvesoftware.Steam/.local/share/Steam"),
+                home.resolve("snap/steam/common/.local/share/Steam"));
+        List<Path> roots = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (Path p : candidates) {
+            if (Files.isDirectory(p.resolve("steamapps")) && seen.add(realKey(p))) {
+                roots.add(p);
+            }
+        }
+        return roots;
+    }
+
+    /** Справжній шлях (після посилань) — щоб не сканувати одну бібліотеку двічі. */
+    private static String realKey(Path p) {
+        try {
+            return p.toRealPath().toString();
+        } catch (IOException e) {
+            return p.toAbsolutePath().normalize().toString();
+        }
+    }
+
+    private static Path findWindowsSteamRoot() {
         String path = WindowsRegistry.readValues("HKCU\\Software\\Valve\\Steam").get("SteamPath");
         if (path == null) {
             path = WindowsRegistry.readValues("HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam").get("InstallPath");
@@ -138,7 +189,8 @@ public final class SteamScanner implements GameScanner {
 
     private static void addLibrary(Path path, Set<String> seen, Set<Path> libraries) {
         Path normalized = path.toAbsolutePath().normalize();
-        if (seen.add(normalized.toString().toLowerCase(Locale.ROOT))) {
+        String key = Os.isWindows() ? normalized.toString().toLowerCase(Locale.ROOT) : normalized.toString();
+        if (seen.add(key)) {
             libraries.add(normalized);
         }
     }

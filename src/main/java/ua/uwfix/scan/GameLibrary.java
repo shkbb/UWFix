@@ -2,6 +2,7 @@ package ua.uwfix.scan;
 
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.Game;
+import ua.uwfix.system.Os;
 import ua.uwfix.util.UkrainianCollator;
 
 import java.util.ArrayList;
@@ -21,13 +22,17 @@ public final class GameLibrary {
         this.scanners = List.copyOf(scanners);
     }
 
-    /** Бібліотека з усіма підтримуваними лаунчерами. */
+    /** Бібліотека з усіма лаунчерами, які є на цій операційній системі. */
     public static GameLibrary withDefaultScanners() {
-        return new GameLibrary(List.of(
-                new SteamScanner(),
-                new EpicScanner(),
-                new GogScanner(),
-                new UbisoftScanner()));
+        if (Os.isWindows()) {
+            return new GameLibrary(List.of(
+                    new SteamScanner(),
+                    new EpicScanner(),
+                    new GogScanner(),
+                    new UbisoftScanner()));
+        }
+        // Linux: Steam (разом з Proton) та Heroic для Epic і GOG
+        return new GameLibrary(List.of(new SteamScanner(), new HeroicScanner()));
     }
 
     /**
@@ -61,7 +66,10 @@ public final class GameLibrary {
     private static int addUnique(List<Game> source, List<Game> target, Set<String> seenDirs) {
         int added = 0;
         for (Game g : source) {
-            String key = g.installDir().toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
+            String key = g.installDir().toAbsolutePath().normalize().toString();
+            if (Os.isWindows()) {
+                key = key.toLowerCase(Locale.ROOT); // у Windows регістр літер у шляхах не важливий
+            }
             if (seenDirs.add(key)) {
                 target.add(g);
                 added++;
