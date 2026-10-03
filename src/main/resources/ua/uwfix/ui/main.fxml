@@ -68,7 +68,8 @@
                 <Label text="⬆" styleClass="banner-icon"/>
                 <Label fx:id="updateLabel" styleClass="banner-text" wrapText="true" HBox.hgrow="ALWAYS"
                        maxWidth="Infinity"/>
-                <Hyperlink text="%update.whatsNew" onAction="#onUpdateNotes" styleClass="banner-link"/>
+                <Hyperlink fx:id="updateNotesLink" text="%update.whatsNew" onAction="#onUpdateNotes"
+                           styleClass="banner-link"/>
                 <Button fx:id="updateButton" text="%update.install" onAction="#onUpdate" styleClass="accent-button"/>
             </HBox>
             <HBox fx:id="outdatedBanner" styleClass="banner" alignment="CENTER_LEFT" spacing="12" visible="false">

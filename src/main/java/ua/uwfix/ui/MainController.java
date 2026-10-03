@@ -52,6 +52,8 @@ import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
 import ua.uwfix.system.WindowsShell;
 import ua.uwfix.update.ReleaseInfo;
+import ua.uwfix.update.UpdateException;
+import ua.uwfix.update.UpdateInstaller;
 import ua.uwfix.update.Version;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.i18n.Language;
@@ -105,6 +107,7 @@ public final class MainController {
     // ---- банер «вийшла нова версія UWFix»
     @FXML private HBox updateBanner;
     @FXML private Label updateLabel;
+    @FXML private Hyperlink updateNotesLink;
     @FXML private Button updateButton;
     // ---- банер «ігри оновились»
     @FXML private HBox outdatedBanner;
@@ -151,6 +154,7 @@ public final class MainController {
     private boolean loadingGames;
     private boolean updatingCombo;
     private boolean updatingAutostart;
+    private boolean updatedNoticeShown;
     private RatioOption lastRatioOption;
 
     public MainController(AppContext context, Stage stage, Consumer<String> reloadUi) {
@@ -189,6 +193,8 @@ public final class MainController {
         versionLabel.setText(App.NAME + " " + App.VERSION);
         outdatedBanner.managedProperty().bind(outdatedBanner.visibleProperty());
         updateBanner.managedProperty().bind(updateBanner.visibleProperty());
+        updateButton.managedProperty().bind(updateButton.visibleProperty());
+        updateNotesLink.managedProperty().bind(updateNotesLink.visibleProperty());
         updateBanner.setVisible(false);
         progressBox.setVisible(false);
         showPlaceholder(I18n.t("placeholder.searching.title"), I18n.t("placeholder.searching.text"));
@@ -202,6 +208,7 @@ public final class MainController {
         }
         if (context.options().updatedTo() != null) {
             log(I18n.t("log.updated", context.options().updatedTo()));
+            showUpdatedNotice(context.options().updatedTo());
         }
         start(context.options().select(), null);
     }
@@ -261,10 +268,26 @@ public final class MainController {
     }
 
     private void showUpdate(ReleaseInfo release) {
-        updateBanner.setVisible(release != null);
-        if (release != null) {
-            updateLabel.setText(I18n.t("update.available", release.version().toString()));
+        if (release == null) {
+            if (!updatedNoticeShown) {
+                updateBanner.setVisible(false);
+            }
+            return;
         }
+        updatedNoticeShown = false;
+        updateBanner.setVisible(true);
+        updateNotesLink.setVisible(true);
+        updateButton.setVisible(true);
+        updateLabel.setText(I18n.t("update.available", release.version().toString()));
+    }
+
+    /** Після оновлення банер коротко підтверджує, що все пройшло успішно. */
+    private void showUpdatedNotice(String version) {
+        updatedNoticeShown = true;
+        updateBanner.setVisible(true);
+        updateNotesLink.setVisible(false);
+        updateButton.setVisible(false);
+        updateLabel.setText("✓ " + I18n.t("log.updated", version));
     }
 
     @FXML
@@ -275,12 +298,61 @@ public final class MainController {
         }
     }
 
+    /**
+     * Завантажує нову версію і перезапускає програму. Якщо програма запущена не зі зібраного
+     * UWFix.exe (наприклад, під час розробки), відкриває сторінку релізу для ручного завантаження.
+     */
     @FXML
     private void onUpdate() {
         ReleaseInfo release = context.availableUpdate();
-        if (release != null) {
-            WindowsShell.openUrl(release.pageUrl());
+        if (release == null || busy) {
+            return;
         }
+        Optional<Path> appDir = UpdateInstaller.currentAppDir();
+        if (appDir.isEmpty()) {
+            WindowsShell.openUrl(release.pageUrl());
+            return;
+        }
+        Path workDir = Path.of(System.getProperty("java.io.tmpdir"), "UWFix-update-" + release.version());
+        UpdateInstaller installer = new UpdateInstaller();
+        log(I18n.t("log.updateStarted", release.version().toString()));
+
+        Task<Path> task = backgroundTask(listener -> installer.prepare(release, workDir, listener));
+        setBusy(true);
+        updateLabel.textProperty().bind(task.messageProperty());
+        task.setOnSucceeded(e -> {
+            updateLabel.textProperty().unbind();
+            updateLabel.setText(I18n.t("update.restarting"));
+            List<String> restartArgs = new ArrayList<>();
+            for (String arg : context.rawArgs()) {
+                if (!arg.startsWith("--action=") && !arg.startsWith("--updated=")) {
+                    restartArgs.add(arg);
+                }
+            }
+            restartArgs.add("--updated=" + release.version());
+            String script = UpdateInstaller.updaterScript(ProcessHandle.current().pid(), task.getValue(),
+                    appDir.get(), workDir, PatchStore.defaultHome().resolve("update.log"), restartArgs);
+            try {
+                installer.launch(script, !UpdateInstaller.canWrite(appDir.get()));
+            } catch (UpdateException ex) {
+                setBusy(false);
+                showUpdate(release);
+                handleError(ex);
+                return;
+            }
+            // Програма закривається, щоб скрипт міг замінити її файли
+            Platform.exit();
+            System.exit(0);
+        });
+        task.setOnFailed(e -> {
+            updateLabel.textProperty().unbind();
+            setBusy(false);
+            showUpdate(release);
+            handleError(task.getException());
+        });
+        Thread thread = new Thread(task, "uwfix-update");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private void setupGameList() {
@@ -867,6 +939,9 @@ public final class MainController {
                 case NOTHING_TO_DO -> Dialogs.info(stage, I18n.t("dialog.nothing.header"), pe.getMessage());
                 default -> Dialogs.error(stage, I18n.t("dialog.stopped.header"), pe.getMessage());
             }
+        } else if (ex instanceof UpdateException ue) {
+            log(I18n.t("log.error", ue.getMessage()));
+            Dialogs.error(stage, I18n.t("update.failed.header"), ue.getMessage());
         } else if (ex instanceof IOException io) {
             log(I18n.t("log.ioError", String.valueOf(io)));
             Dialogs.error(stage, I18n.t("dialog.io.header"), String.valueOf(io.getMessage()));
@@ -1097,6 +1172,8 @@ public final class MainController {
                         onFix();
                     } else if (currentAnalysis != null && action.equals("restore")) {
                         onRestore();
+                    } else if (action.equals("update")) {
+                        onUpdate();
                     }
                     return; // чекаємо, доки дія завершиться
                 }

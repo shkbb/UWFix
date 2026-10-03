@@ -64,8 +64,8 @@ $appArgs = @(
     '--icon', $ico,
     '--module-path', $mods,
     '--module', 'uwfix/ua.uwfix.Main',
-    # jdk.localedata — правильне сортування українських назв
-    '--add-modules', 'jdk.localedata',
+    # jdk.localedata — сортування українських назв; jdk.crypto.ec — HTTPS до GitHub (ключі на еліптичних кривих)
+    '--add-modules', 'jdk.localedata,jdk.crypto.ec',
     '--jlink-options', '--strip-native-commands --strip-debug --no-man-pages --no-header-files --include-locales=en,uk',
     '--java-options', '-Dfile.encoding=UTF-8',
     '--dest', 'dist'
