@@ -12,6 +12,8 @@
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
@@ -27,9 +29,11 @@
     <!-- ===================== Шапка ===================== -->
     <top>
         <HBox styleClass="header" alignment="CENTER_LEFT" spacing="14">
-            <StackPane styleClass="logo">
-                <Label text="UW" styleClass="logo-text"/>
-            </StackPane>
+            <ImageView fitWidth="44" fitHeight="44" preserveRatio="true" smooth="true">
+                <image>
+                    <Image url="@icon.png" smooth="true"/>
+                </image>
+            </ImageView>
             <VBox spacing="1" alignment="CENTER_LEFT">
                 <Label text="UWFix" styleClass="app-title"/>
                 <Label text="%header.subtitle" styleClass="app-subtitle"/>

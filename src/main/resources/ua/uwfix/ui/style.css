@@ -50,21 +50,6 @@
     -fx-border-color: transparent transparent -uw-border transparent;
 }
 
-.logo {
-    -fx-background-color: -uw-accent;
-    -fx-background-radius: 10;
-    -fx-min-width: 42;
-    -fx-min-height: 42;
-    -fx-max-width: 42;
-    -fx-max-height: 42;
-}
-
-.logo-text {
-    -fx-text-fill: -uw-on-accent;
-    -fx-font-weight: bold;
-    -fx-font-size: 16px;
-}
-
 .app-title {
     -fx-font-size: 20px;
     -fx-font-weight: bold;
