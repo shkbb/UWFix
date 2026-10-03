@@ -8,3 +8,5 @@ tools/
 .classpath
 .project
 .settings/
+hs_err_pid*.log
+replay_pid*.log
