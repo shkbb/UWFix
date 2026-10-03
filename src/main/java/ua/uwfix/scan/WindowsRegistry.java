@@ -106,6 +106,24 @@ public final class WindowsRegistry {
         return result;
     }
 
+    /** Записує 32-бітне число (REG_DWORD). Розділ створюється, якщо його немає. */
+    public static boolean setDword(String key, String name, long value) {
+        if (!isWindows()) {
+            return false;
+        }
+        try {
+            Process process = new ProcessBuilder("reg", "add", key, "/v", name, "/t", "REG_DWORD",
+                    "/d", String.valueOf(value), "/f").redirectErrorStream(true).start();
+            process.getInputStream().readAllBytes();
+            return process.waitFor(15, TimeUnit.SECONDS) && process.exitValue() == 0;
+        } catch (IOException e) {
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
     /** HKLM\... → HKEY_LOCAL_MACHINE\... */
     static String expandRoot(String key) {
         int slash = key.indexOf('\\');

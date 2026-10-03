@@ -19,6 +19,7 @@ class RegFileParserTest {
             + "\"dependsOn\"=\"\"\r\n"
             + "\"quoted\"=\"say \\\"hi\\\"\"\r\n"
             + "\"version\"=dword:00000004\r\n"
+            + "\"Screenmanager Resolution Width_h182942802\"=dword:00000d70\r\n"
             + "\"blob\"=hex:01,02,03,\\\r\n"
             + "  04,05\r\n"
             + "@=\"default value\"\r\n"
@@ -37,8 +38,9 @@ class RegFileParserTest {
         assertEquals("", witcher.get("dependsOn"));
         assertEquals("say \"hi\"", witcher.get("quoted"));
         assertEquals("default value", witcher.get("@"));
-        assertFalse(witcher.containsKey("version"), "DWORD-значення ігноруються");
+        assertEquals("4", witcher.get("version"), "DWORD повертається десятковим рядком");
         assertFalse(witcher.containsKey("blob"), "двійкові значення ігноруються");
+        assertEquals("3440", witcher.get("Screenmanager Resolution Width_h182942802"));
 
         assertEquals("Відьмак 3: Дикий Гін",
                 keys.get("HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\GOG.com\\Games\\1495134320").get("gameName"));

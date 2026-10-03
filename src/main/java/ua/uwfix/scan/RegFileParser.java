@@ -13,7 +13,7 @@ import java.util.Map;
  *   "path"="C:\\GOG Games\\The Witcher 3"
  *   "dependsOn"=dword:00000000
  * </pre>
- * Беремо лише рядкові значення (REG_SZ) — інші типи програмі не потрібні.
+ * Беремо рядкові значення (REG_SZ) і числа DWORD (як десятковий рядок) — інші типи програмі не потрібні.
  */
 public final class RegFileParser {
 
@@ -62,6 +62,13 @@ public final class RegFileParser {
             String value = readQuoted(line, cursor);
             if (value != null) {
                 target.put(name, value);
+            }
+        } else if (line.startsWith("dword:", cursor[0])) {
+            // DWORD (32-бітне число) записується як 8 hex-цифр — віддаємо десятковим рядком
+            try {
+                target.put(name, String.valueOf(Long.parseLong(line.substring(cursor[0] + 6).strip(), 16)));
+            } catch (NumberFormatException ignored) {
+                // пошкоджене значення — пропускаємо
             }
         }
     }

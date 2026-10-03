@@ -343,6 +343,24 @@
     -fx-font-size: 12px;
 }
 
+/* ---------- Роздільна здатність у налаштуваннях гри ---------- */
+
+.resolution-row {
+    -fx-background-color: -uw-surface;
+    -fx-background-radius: 10;
+    -fx-border-color: -uw-border;
+    -fx-border-radius: 10;
+    -fx-padding: 8 12 8 14;
+}
+
+.resolution-icon {
+    -fx-font-size: 18px;
+}
+
+.resolution-title {
+    -fx-font-weight: bold;
+}
+
 /* ---------- Банер ---------- */
 
 .banner {

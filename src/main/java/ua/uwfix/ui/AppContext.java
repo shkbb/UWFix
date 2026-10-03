@@ -4,6 +4,7 @@ import ua.uwfix.analysis.GameAnalyzer;
 import ua.uwfix.patch.PatchStore;
 import ua.uwfix.patch.Patcher;
 import ua.uwfix.scan.GameLibrary;
+import ua.uwfix.settings.ResolutionUnlocker;
 import ua.uwfix.update.ReleaseInfo;
 import ua.uwfix.update.UpdateChecker;
 
@@ -26,6 +27,7 @@ public final class AppContext {
     private final GameLibrary library;
     private final UpdateChecker updateChecker = new UpdateChecker();
     private final GameIcons icons = new GameIcons();
+    private ResolutionUnlocker resolutionUnlocker;
     private final ExecutorService executor;
     private final LaunchOptions options;
     private final List<String> rawArgs;
@@ -82,6 +84,14 @@ public final class AppContext {
 
     public UpdateChecker updateChecker() {
         return updateChecker;
+    }
+
+    /** Створюється при першому використанні у фоні: шукає папку «Документи» через реєстр. */
+    public synchronized ResolutionUnlocker resolutionUnlocker() {
+        if (resolutionUnlocker == null) {
+            resolutionUnlocker = new ResolutionUnlocker();
+        }
+        return resolutionUnlocker;
     }
 
     /** Іконки ігор — спільні для всіх екземплярів вікна (після зміни мови не вантажаться знову). */

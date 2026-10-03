@@ -49,6 +49,8 @@ import ua.uwfix.patch.PatchRecord;
 import ua.uwfix.patch.PatchStore;
 import ua.uwfix.patch.Patcher;
 import ua.uwfix.patch.Patcher.FileState;
+import ua.uwfix.settings.GameSettings;
+import ua.uwfix.settings.ResolutionUnlocker;
 import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
 import ua.uwfix.system.WindowsShell;
@@ -129,6 +131,9 @@ public final class MainController {
     @FXML private Label statusTitle;
     @FXML private Label statusText;
     @FXML private Label engineHint;
+    @FXML private HBox resolutionRow;
+    @FXML private Label resolutionText;
+    @FXML private Button resolutionButton;
     @FXML private TableView<FileRow> fileTable;
     @FXML private CheckBox doubleCheck;
     @FXML private Button fixButton;
@@ -157,6 +162,8 @@ public final class MainController {
     private boolean updatingCombo;
     private boolean updatingAutostart;
     private boolean updatedNoticeShown;
+    /** Де обрана гра зберігає роздільну здатність (null — ще не з'ясовано). */
+    private ResolutionUnlocker.Lookup settingsLookup;
     private final PauseTransition iconRefresh = new PauseTransition(Duration.millis(120));
     private RatioOption lastRatioOption;
 
@@ -205,6 +212,9 @@ public final class MainController {
         updateButton.managedProperty().bind(updateButton.visibleProperty());
         updateNotesLink.managedProperty().bind(updateNotesLink.visibleProperty());
         updateBanner.setVisible(false);
+        resolutionRow.managedProperty().bind(resolutionRow.visibleProperty());
+        resolutionRow.setVisible(false);
+        resolutionButton.setTooltip(new Tooltip(I18n.t("settings.tooltip")));
         progressBox.setVisible(false);
         showPlaceholder(I18n.t("placeholder.searching.title"), I18n.t("placeholder.searching.text"));
     }
@@ -645,6 +655,8 @@ public final class MainController {
         gamePath.setText(game.installDir().toString());
         chips.getChildren().setAll(chip(game.source().displayName(), "chip"));
         engineHint.setText("");
+        settingsLookup = null;
+        resolutionRow.setVisible(false);
         setStatus("…", "status-idle", I18n.t("status.analyzing.title"), I18n.t("status.analyzing.text"));
         analyze(game);
     }
@@ -695,6 +707,7 @@ public final class MainController {
             newRows.add(row);
         }
         rows.setAll(newRows);
+        lookupSettings(analysis.game());
 
         int found = analysis.candidates().stream().mapToInt(BinaryCandidate::totalMatches).sum();
         log(I18n.t("log.analysis", analysis.game().name(), analysis.scannedFiles(), found,
@@ -704,6 +717,7 @@ public final class MainController {
 
     /** Оновлює картку стану та доступність кнопок. */
     private void updateStatus() {
+        updateResolutionRow();
         if (currentAnalysis == null) {
             fixButton.setDisable(true);
             restoreButton.setDisable(true);
@@ -872,6 +886,62 @@ public final class MainController {
                 analyze(game);
             }
         }, game);
+    }
+
+    // ================================================================== роздільна здатність у налаштуваннях гри
+
+    private void lookupSettings(Game game) {
+        Task<ResolutionUnlocker.Lookup> task = backgroundTask(
+                listener -> context.resolutionUnlocker().lookup(game.installDir(), game.name()));
+        task.setOnSucceeded(e -> {
+            if (game.equals(currentGame)) {
+                settingsLookup = task.getValue();
+                updateResolutionRow();
+            }
+        });
+        context.executor().submit(task);
+    }
+
+    private void updateResolutionRow() {
+        ResolutionUnlocker.Lookup lookup = settingsLookup;
+        if (lookup == null || !lookup.supported()) {
+            resolutionRow.setVisible(false);
+            return;
+        }
+        resolutionRow.setVisible(true);
+        AspectRatio target = targetRatio();
+        String targetText = target == null ? "" : target.resolutionText();
+        GameSettings settings = lookup.settings();
+        if (settings == null) {
+            resolutionText.setText(I18n.t("settings.notFound"));
+            resolutionButton.setText(I18n.t("settings.set", targetText));
+            resolutionButton.setDisable(true);
+            return;
+        }
+        resolutionText.setText(settings.current() != null
+                ? I18n.t("settings.current", settings.current().resolutionText(), settings.location())
+                : I18n.t("settings.unknown", settings.location()));
+        boolean already = target != null && target.equals(settings.current());
+        resolutionButton.setText(I18n.t(already ? "settings.already" : "settings.set", targetText));
+        resolutionButton.setDisable(busy || target == null || already);
+    }
+
+    @FXML
+    private void onSetResolution() {
+        Game game = currentGame;
+        AspectRatio target = targetRatio();
+        GameSettings settings = settingsLookup == null ? null : settingsLookup.settings();
+        if (game == null || target == null || settings == null) {
+            return;
+        }
+        runBusy(listener -> {
+            context.resolutionUnlocker().apply(settings, target);
+            return settings;
+        }, applied -> {
+            log(I18n.t("log.settingsApplied", target.resolutionText(),
+                    applied.file() != null ? applied.file().toString() : applied.registryKey()));
+            lookupSettings(game);
+        }, null);
     }
 
     @FXML
