@@ -39,6 +39,8 @@ not taken from a fixed table.
   - only the 4 (or 8) bytes found are changed, the rest of the file is not rewritten;
   - before each write the expected bytes are verified;
   - SHA-256 checksums of the original and the result are stored.
+- **Resolution unlock**: for games that don't offer 3440×1440 in their menu, UWFix writes it straight into the game settings — `GameUserSettings.ini` (Unreal Engine 4/5), `*Engine.ini` (Unreal Engine 3, e.g. Life is Strange) or the registry (Unity).
+- **Play button**: launches the game via Steam / Epic / Ubisoft Connect (achievements and cloud saves keep working) or directly via its .exe.
 - **One-click restore** — even without the backup, because UWFix knows every changed location.
 - **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at Windows sign-in.
 - **Anti-cheat warning** (Easy Anti-Cheat, BattlEye, VAC…): modifying online games is risky for your account.
@@ -50,7 +52,7 @@ not taken from a fixed table.
 - The method works only if the game stores 16:9 as a ready-made number. If the ratio is computed differently, UWFix will say “The 16:9 value was not found”.
 - **Pre-rendered 16:9 video cutscenes cannot be fixed**: there is no picture on the sides in the video itself.
 - In some games the UI may stretch after patching — just press “Restore original”.
-- UWFix changes the aspect ratio only; if a game does not offer your resolution in its settings, set it separately (usually in the game's config file).
+- Game settings appear after the first launch — run the game once before setting the resolution in UWFix.
 - Microsoft Store / Xbox Game Pass games are write-protected.
 - Do not use it for online games with anti-cheat.
 
@@ -108,6 +110,7 @@ src/main/java/ua/uwfix/
 ├── scan/                     game discovery: SteamScanner (VDF parser), EpicScanner (JSON),
 │                             GogScanner, UbisoftScanner (registry via reg export), GameLibrary
 ├── analysis/                 GameAnalyzer (file selection), EngineDetector, AntiCheatDetector
+├── settings/                 ResolutionUnlocker, IniEditor, UnityPrefs — resolution in game settings
 ├── icon/                     PeIconExtractor (icons from .exe: PE resources, PNG/BMP), GameIconLocator (Steam cache)
 ├── patch/                    Patcher (patch, restore, re-apply), PatchStore (state in JSON)
 ├── cli/                      ReapplyCommand — silent --reapply mode
@@ -135,7 +138,7 @@ flowchart LR
 
 ## Testing
 
-138 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+151 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
 translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask).

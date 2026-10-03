@@ -6,7 +6,7 @@
 
     <groupId>ua.uwfix</groupId>
     <artifactId>uwfix</artifactId>
-    <version>1.3.0</version>
+    <version>1.4.0</version>
     <name>UWFix</name>
     <description>Виправлення чорних смуг у катсценах ігор на ультрашироких моніторах</description>
     <url>https://github.com/shkbb/UWFix</url>
