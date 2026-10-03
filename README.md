@@ -31,7 +31,8 @@ not taken from a fixed table.
 ## Features
 
 - **Game discovery**: Steam (all libraries on all drives), Epic Games, GOG, Ubisoft Connect, plus any folder added manually.
-- **Monitor detection**: the resolution is detected automatically, taking Windows scaling into account; you can pick another one or enter your own.
+- **Game icons**: Steam games get their icon from Steam's local cache, other games — straight from the game's .exe (the app parses the Windows PE resource table itself).
+- **Monitor detection**: every connected monitor is detected automatically, taking Windows scaling into account; you can pick another resolution or enter your own.
 - **Game analysis**: finds .exe and .dll files containing 16:9, skips third-party libraries (Steam API, DirectX, PhysX…), detects the engine (Unreal Engine 3/4/5, Unity, REDengine) and suggests which files to patch.
 - **Safe patching**:
   - a backup `*.uwfix-backup` is created before any change;
@@ -107,6 +108,7 @@ src/main/java/ua/uwfix/
 ├── scan/                     game discovery: SteamScanner (VDF parser), EpicScanner (JSON),
 │                             GogScanner, UbisoftScanner (registry via reg export), GameLibrary
 ├── analysis/                 GameAnalyzer (file selection), EngineDetector, AntiCheatDetector
+├── icon/                     PeIconExtractor (icons from .exe: PE resources, PNG/BMP), GameIconLocator (Steam cache)
 ├── patch/                    Patcher (patch, restore, re-apply), PatchStore (state in JSON)
 ├── cli/                      ReapplyCommand — silent --reapply mode
 ├── i18n/                     I18n, Language — translations (messages_en/uk.properties)
@@ -133,10 +135,10 @@ flowchart LR
 
 ## Testing
 
-128 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+138 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
-translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder).
+translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask).
 
 Search algorithms on 128 MB of machine-code-like data (`mvnw test -Pbenchmark`):
 
