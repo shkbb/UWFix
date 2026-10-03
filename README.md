@@ -31,7 +31,8 @@ not taken from a fixed table.
 ## Features
 
 - **Game discovery**: Steam (all libraries on all drives), Epic Games, GOG, Ubisoft Connect, plus any folder added manually.
-- **Game icons**: Steam games get their icon from Steam's local cache, other games — straight from the game's .exe (the app parses the Windows PE resource table itself).
+- **Game icons and cover art**: Steam games get their icon, background art and logo from Steam's local cache, other games — an icon straight from the game's .exe (the app parses the Windows PE resource table itself).
+- **Search, filters and sorting**: search ignores case and punctuation; show all / fixed / not fixed / updated games; sort by name (Ukrainian alphabet aware), launcher or fixed first.
 - **Monitor detection**: every connected monitor is detected automatically, taking Windows scaling into account; you can pick another resolution or enter your own.
 - **Game analysis**: finds .exe and .dll files containing 16:9, skips third-party libraries (Steam API, DirectX, PhysX…), detects the engine (Unreal Engine 3/4/5, Unity, REDengine) and suggests which files to patch.
 - **Safe patching**:
@@ -138,7 +139,7 @@ flowchart LR
 
 ## Testing
 
-151 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+157 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
 translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask).
