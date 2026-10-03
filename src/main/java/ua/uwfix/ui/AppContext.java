@@ -6,6 +6,8 @@ import ua.uwfix.patch.Patcher;
 import ua.uwfix.scan.GameLibrary;
 
 import java.nio.file.Path;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,8 +24,16 @@ public final class AppContext {
     private final GameLibrary library;
     private final ExecutorService executor;
     private final LaunchOptions options;
+    private final Deque<String> pendingActions = new ArrayDeque<>();
 
     private AppContext(PatchStore store, GameLibrary library, LaunchOptions options) {
+        if (options.action() != null) {
+            for (String action : options.action().split(",")) {
+                if (!action.isBlank()) {
+                    pendingActions.add(action.strip());
+                }
+            }
+        }
         this.store = store;
         this.patcher = new Patcher(store);
         this.analyzer = new GameAnalyzer();
@@ -65,6 +75,14 @@ public final class AppContext {
         return options;
     }
 
+    /**
+     * Черга демо-дій з {@code --action=lang:en,fix}: спільна для всіх екземплярів вікна,
+     * щоб після перебудови вікна (зміна мови) решта дій виконалась у новому.
+     */
+    public Deque<String> pendingActions() {
+        return pendingActions;
+    }
+
     public void shutdown() {
         executor.shutdownNow();
     }
@@ -74,7 +92,7 @@ public final class AppContext {
      *
      * @param snapshot   зберегти знімок вікна у PNG і завершити роботу
      * @param select     після запуску обрати гру, назва якої містить цей текст
-     * @param action     перед знімком виконати дію: «fix» або «restore»
+     * @param action     перед знімком виконати дії через кому: «fix», «restore», «lang:en»
      * @param renderIcon намалювати іконку програми у PNG і завершити роботу
      */
     public record LaunchOptions(Path snapshot, String select, String action, Path renderIcon) {

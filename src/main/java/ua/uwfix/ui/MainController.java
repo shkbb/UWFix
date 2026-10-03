@@ -52,6 +52,7 @@ import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
 import ua.uwfix.system.WindowsShell;
 import ua.uwfix.i18n.I18n;
+import ua.uwfix.i18n.Language;
 import ua.uwfix.util.ProgressListener;
 
 import java.io.File;
@@ -61,6 +62,7 @@ import java.nio.file.Path;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -86,8 +88,11 @@ public final class MainController {
     private final Stage stage;
     private final PatchStore store;
     private final Patcher patcher;
+    /** Перебудовує вікно після зміни мови; параметр — id гри, яку треба знову обрати. */
+    private final Consumer<String> reloadUi;
 
     // ---- шапка
+    @FXML private ComboBox<Language> languageCombo;
     @FXML private ComboBox<RatioOption> ratioCombo;
     // ---- список ігор
     @FXML private TextField searchField;
@@ -142,11 +147,12 @@ public final class MainController {
     private boolean updatingAutostart;
     private RatioOption lastRatioOption;
 
-    public MainController(AppContext context, Stage stage) {
+    public MainController(AppContext context, Stage stage, Consumer<String> reloadUi) {
         this.context = context;
         this.stage = stage;
         this.store = context.store();
         this.patcher = context.patcher();
+        this.reloadUi = reloadUi;
     }
 
     // ================================================================== ініціалізація
@@ -157,6 +163,9 @@ public final class MainController {
         setupFileTable();
 
         ratioCombo.getSelectionModel().selectedItemProperty().addListener((o, old, now) -> onRatioChanged(old, now));
+        languageCombo.getItems().setAll(Language.values());
+        languageCombo.getSelectionModel().select(I18n.language());
+        languageCombo.getSelectionModel().selectedItemProperty().addListener((o, old, now) -> onLanguageChanged(now));
         doubleCheck.setSelected(store.state().includeDouble());
         doubleCheck.selectedProperty().addListener((o, a, value) -> {
             store.setIncludeDouble(value);
@@ -177,19 +186,28 @@ public final class MainController {
         showPlaceholder(I18n.t("placeholder.searching.title"), I18n.t("placeholder.searching.text"));
     }
 
-    /** Викликається після показу вікна. */
+    /** Викликається після першого показу вікна. */
     public void onShown() {
         if (context.options().renderIcon() != null) {
             renderIconAndExit(context.options().renderIcon());
             return;
         }
+        start(context.options().select(), null);
+    }
+
+    /** Викликається після перебудови вікна (зміна мови): знову обирає ту саму гру. */
+    public void onReloaded(String gameId) {
+        start(null, gameId);
+    }
+
+    private void start(String selectName, String selectId) {
         List<AspectRatio> monitors = Displays.monitors();
         fillRatioCombo(monitors);
         monitorLabel.setText(monitors.isEmpty() ? I18n.t("status.monitor.none")
                 : monitors.size() == 1 ? I18n.t("status.monitor", monitors.get(0).toString())
                 : I18n.t("status.monitor.more", monitors.get(0).toString(), monitors.size() - 1));
         checkAdminAsync();
-        loadGames(context.options().select());
+        loadGames(selectName, selectId);
         if (context.options().snapshot() != null) {
             scheduleSnapshot(context.options().snapshot());
         }
@@ -334,7 +352,7 @@ public final class MainController {
 
     // ================================================================== список ігор
 
-    private void loadGames(String selectName) {
+    private void loadGames(String selectName, String selectId) {
         loadingGames = true;
         gamesCountLabel.setText(I18n.t("games.searching"));
         List<Game> manual = manualGames();
@@ -346,7 +364,7 @@ public final class MainController {
         };
         task.setOnSucceeded(e -> {
             loadingGames = false;
-            String keepId = currentGame != null ? currentGame.id() : null;
+            String keepId = selectId != null ? selectId : currentGame != null ? currentGame.id() : null;
             games.setAll(task.getValue());
             refreshBadges();
             gamesCountLabel.setText(I18n.t("games.count", games.size()));
@@ -391,7 +409,7 @@ public final class MainController {
     @FXML
     private void onRefresh() {
         if (!busy) {
-            loadGames(null);
+            loadGames(null, null);
         }
     }
 
@@ -416,7 +434,7 @@ public final class MainController {
         store.addManualGame(new ManualGameEntry(name.get(), dir.getAbsolutePath()));
         saveQuietly();
         log(I18n.t("log.added", name.get(), dir.toString()));
-        loadGames(name.get());
+        loadGames(name.get(), null);
     }
 
     private void removeManualGame(Game game) {
@@ -426,7 +444,7 @@ public final class MainController {
         if (currentGame != null && currentGame.id().equals(game.id())) {
             currentGame = null;
         }
-        loadGames(null);
+        loadGames(null, null);
     }
 
     /** Позначки біля ігор у списку і банер «гра оновилась». */
@@ -821,6 +839,7 @@ public final class MainController {
         addGameButton.setDisable(value);
         refreshButton.setDisable(value);
         ratioCombo.setDisable(value);
+        languageCombo.setDisable(value);
         reapplyAllButton.setDisable(value);
         fileTable.setDisable(value);
         doubleCheck.setDisable(value);
@@ -837,6 +856,22 @@ public final class MainController {
         progressBar.progressProperty().unbind();
         progressLabel.textProperty().unbind();
         progressBox.setVisible(false);
+    }
+
+    private void onLanguageChanged(Language language) {
+        if (language == null || language == I18n.language()) {
+            return;
+        }
+        store.setLanguage(language.code());
+        saveQuietly();
+        if (analysisTask != null && analysisTask.isRunning()) {
+            analysisTask.cancel();
+        }
+        I18n.setLanguage(language);
+        // Вікно перебудовується з новим словником; Platform.runLater — щоб не міняти сцену
+        // посеред обробки події самого списку
+        String gameId = currentGame != null ? currentGame.id() : null;
+        Platform.runLater(() -> reloadUi.accept(gameId));
     }
 
     /** Права адміністратора та стан автозапуску перевіряються у фоні — це виклики системних утиліт. */
@@ -971,16 +1006,22 @@ public final class MainController {
 
     private void scheduleSnapshot(Path target) {
         Timeline[] poll = new Timeline[1];
-        String[] pendingAction = {context.options().action()};
+        Deque<String> actions = context.pendingActions();
         poll[0] = new Timeline(new KeyFrame(Duration.millis(400), e -> {
             boolean analysing = analysisTask != null && !analysisTask.isDone();
             if (!loadingGames && !busy && !analysing) {
-                if (pendingAction[0] != null && currentAnalysis != null) {
-                    String action = pendingAction[0];
-                    pendingAction[0] = null;
-                    if (action.equals("fix")) {
+                String action = actions.peek();
+                if (action != null) {
+                    actions.poll();
+                    if (action.startsWith("lang:")) {
+                        Language language = Language.fromCode(action.substring("lang:".length()));
+                        if (language != null && language != I18n.language()) {
+                            poll[0].stop(); // нове вікно продовжить чергу дій само
+                            languageCombo.getSelectionModel().select(language);
+                        }
+                    } else if (currentAnalysis != null && action.equals("fix")) {
                         onFix();
-                    } else if (action.equals("restore")) {
+                    } else if (currentAnalysis != null && action.equals("restore")) {
                         onRestore();
                     }
                     return; // чекаємо, доки дія завершиться

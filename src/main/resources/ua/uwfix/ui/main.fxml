@@ -36,6 +36,10 @@
             </VBox>
             <Region HBox.hgrow="ALWAYS"/>
             <VBox spacing="5" alignment="CENTER_LEFT">
+                <Label text="%header.language" styleClass="caption"/>
+                <ComboBox fx:id="languageCombo" prefWidth="150"/>
+            </VBox>
+            <VBox spacing="5" alignment="CENTER_LEFT">
                 <Label text="%header.target" styleClass="caption"/>
                 <ComboBox fx:id="ratioCombo" prefWidth="310" styleClass="ratio-combo"/>
             </VBox>
