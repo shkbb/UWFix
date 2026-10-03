@@ -103,6 +103,16 @@
     -fx-background-color: derive(-uw-accent, -12%);
 }
 
+.play-button {
+    -fx-background-color: -uw-ok;
+    -fx-text-fill: #062b1a;
+    -fx-font-weight: bold;
+}
+
+.play-button:hover {
+    -fx-background-color: derive(-uw-ok, 12%);
+}
+
 .secondary-button {
     -fx-background-color: -uw-surface-2;
     -fx-border-color: -uw-border;

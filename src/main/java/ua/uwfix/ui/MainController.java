@@ -53,6 +53,7 @@ import ua.uwfix.settings.GameSettings;
 import ua.uwfix.settings.ResolutionUnlocker;
 import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
+import ua.uwfix.system.GameLauncher;
 import ua.uwfix.system.WindowsShell;
 import ua.uwfix.update.ReleaseInfo;
 import ua.uwfix.update.UpdateException;
@@ -125,6 +126,7 @@ public final class MainController {
     @FXML private StackPane gameIconBox;
     @FXML private Label gameTitle;
     @FXML private Hyperlink gamePath;
+    @FXML private Button playButton;
     @FXML private FlowPane chips;
     @FXML private HBox statusCard;
     @FXML private Label statusIcon;
@@ -651,6 +653,9 @@ public final class MainController {
         placeholder.setVisible(false);
         detailsPane.setVisible(true);
         gameTitle.setText(game.name());
+        playButton.setTooltip(new Tooltip(GameLauncher.usesLauncher(game)
+                ? I18n.t("action.play.launcher", game.source().displayName())
+                : I18n.t("action.play.exe")));
         updateDetailsIcon();
         gamePath.setText(game.installDir().toString());
         chips.getChildren().setAll(chip(game.source().displayName(), "chip"));
@@ -944,6 +949,22 @@ public final class MainController {
         }, null);
     }
 
+    /** Запускає гру: через її лаунчер або напряму .exe. */
+    @FXML
+    private void onPlay() {
+        Game game = currentGame;
+        if (game == null || busy) {
+            return;
+        }
+        try {
+            GameLauncher.launch(game);
+            log(I18n.t("log.launching", game.name()));
+        } catch (IOException e) {
+            log(I18n.t("log.error", String.valueOf(e.getMessage())));
+            Dialogs.error(stage, I18n.t("dialog.launchFailed.header"), String.valueOf(e.getMessage()));
+        }
+    }
+
     @FXML
     private void onOpenFolder() {
         if (currentGame != null) {
@@ -1068,6 +1089,7 @@ public final class MainController {
         ratioCombo.setDisable(value);
         languageCombo.setDisable(value);
         updateButton.setDisable(value);
+        playButton.setDisable(value);
         reapplyAllButton.setDisable(value);
         fileTable.setDisable(value);
         doubleCheck.setDisable(value);

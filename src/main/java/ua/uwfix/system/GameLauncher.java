@@ -40,6 +40,11 @@ public final class GameLauncher {
         };
     }
 
+    /** Чи запускається гра через лаунчер (а не напряму .exe). */
+    public static boolean usesLauncher(Game game) {
+        return launcherUri(game) != null;
+    }
+
     public static void launch(Game game) throws IOException {
         String uri = launcherUri(game);
         if (uri != null) {

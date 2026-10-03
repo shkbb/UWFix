@@ -94,6 +94,8 @@
                             <Label fx:id="gameTitle" styleClass="game-title" wrapText="true"/>
                             <Hyperlink fx:id="gamePath" onAction="#onOpenFolder" styleClass="path-link"/>
                         </VBox>
+                        <Button fx:id="playButton" text="%action.play" onAction="#onPlay" minWidth="-Infinity"
+                                styleClass="play-button, big-button"/>
                     </HBox>
                     <FlowPane fx:id="chips" hgap="8" vgap="6"/>
 
