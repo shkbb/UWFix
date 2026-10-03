@@ -3,11 +3,11 @@
 **English** · [Українська](README.uk.md)
 
 UWFix finds your installed games (Steam, Epic Games, GOG, Ubisoft Connect) and removes the black bars
-on the sides of cutscenes on 21:9 and 32:9 monitors — with one button.
+on the sides of cutscenes on 21:9 and 32:9 monitors — with one button. Works on Windows and Linux (Proton, Wine).
 
 ![UWFix main window](docs/screenshots/en/03-fixed.png)
 
-**[⬇ Download the latest release](https://github.com/shkbb/UWFix/releases/latest)** — an installer or a portable version. Java is bundled, nothing else to install. Windows 10/11 x64.
+**[⬇ Download the latest release](https://github.com/shkbb/UWFix/releases/latest)** — an installer or a portable version. Java is bundled, nothing else to install. Windows 10/11 x64 and [Linux x64](#linux).
 
 ## How it works
 
@@ -30,7 +30,7 @@ not taken from a fixed table.
 
 ## Features
 
-- **Game discovery**: Steam (all libraries on all drives), Epic Games, GOG, Ubisoft Connect, plus any folder added manually.
+- **Game discovery**: Steam (all libraries on all drives), Epic Games, GOG, Ubisoft Connect, plus any folder added manually. On Linux — Steam (also Flatpak and Snap) and Heroic Games Launcher.
 - **Game icons and cover art**: Steam games get their icon, background art and logo from Steam's local cache, other games — an icon straight from the game's .exe (the app parses the Windows PE resource table itself).
 - **Search, filters and sorting**: search ignores case and punctuation; show all / fixed / not fixed / updated games; sort by name (Ukrainian alphabet aware), launcher or fixed first.
 - **Monitor detection**: every connected monitor is detected automatically, taking Windows scaling into account; you can pick another resolution or enter your own.
@@ -43,7 +43,7 @@ not taken from a fixed table.
 - **Resolution unlock**: for games that don't offer 3440×1440 in their menu, UWFix writes it straight into the game settings — `GameUserSettings.ini` (Unreal Engine 4/5), `*Engine.ini` (Unreal Engine 3, e.g. Life is Strange), the registry (Unity), `video.txt` (Source) or `*Prefs.ini` (Skyrim, Fallout).
 - **Play button**: launches the game via Steam / Epic / Ubisoft Connect (achievements and cloud saves keep working) or directly via its .exe.
 - **One-click restore** — even without the backup, because UWFix knows every changed location.
-- **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at Windows sign-in.
+- **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at sign-in (Windows or Linux).
 - **Anti-cheat warning** (Easy Anti-Cheat, BattlEye, VAC…): modifying online games is risky for your account.
 - **Languages**: English and Ukrainian, switchable on the fly.
 - **Self-update**: at startup UWFix checks GitHub for a new version; one click downloads it, verifies the SHA-256 checksum and restarts into the new version — no need to download it manually again.
@@ -85,6 +85,19 @@ For every engine UWFix shows an honest hint: where the 16:9 replacement helps, w
 
 App data: `%APPDATA%\UWFix\state.json` (state and settings), `%APPDATA%\UWFix\reapply.log` (automatic check log).
 
+## Linux
+
+UWFix also works on Linux — for Windows games that run through Proton (Steam) or Wine (Heroic Games Launcher):
+
+- **Install**: unpack `UWFix-<version>-linux-x64.tar.gz` and run `UWFix/bin/UWFix`, or install the package on Debian/Ubuntu: `sudo apt install ./uwfix_*_amd64.deb`.
+- **Games**: Steam (native, Flatpak and Snap), Epic Games and GOG installed through Heroic (from its `installed.json` lists).
+- **Patching** works exactly as on Windows: under Proton the game is the same Windows .exe.
+- **Resolution unlock** looks inside the game's Wine prefix: Steam keeps one per game in `steamapps/compatdata/<AppID>/pfx`, Heroic stores the path in the game's settings. The `.ini` files are in `drive_c/users/steamuser/…`, and the registry is the text file `user.reg`, which UWFix edits directly. Close the game first — Wine rewrites this file when it exits.
+- **Play** starts Steam games via `steam://`; Heroic games are started from Heroic.
+- **Autostart**: `~/.config/autostart/uwfix-reapply.desktop`; app data: `~/.config/uwfix/`.
+- **Self-update** works for the tar.gz version in a folder you can write to; the .deb version opens the release page instead.
+- Native Linux builds of games (without Proton) are not supported: the 16:9 search works on Windows .exe/.dll files.
+
 <details>
 <summary>More screenshots</summary>
 
@@ -110,13 +123,20 @@ mvnw test
 powershell -ExecutionPolicy Bypass -File build-installer.ps1
 ```
 
+```bash
+./build-linux.sh --deb
+```
+
 | Command | What it does |
 |---------|--------------|
 | `mvnw javafx:run` | run during development |
 | `mvnw test` | unit tests (JUnit 5) |
 | `mvnw test -Pbenchmark` | search algorithm benchmark; result in `target\benchmark-results.txt`; add `-Dbench.file=path\to\game.exe` to use a real file |
 | `build-installer.ps1` | portable `dist\UWFix\UWFix.exe`, a `.zip` and the installer `dist\UWFix-<version>.exe` (needs [WiX Toolset 3](https://github.com/wixtoolset/wix3/releases) in `tools\wix`) |
+| `build-linux.sh` | Linux: `dist/UWFix/bin/UWFix`, the archive `UWFix-<version>-linux-x64.tar.gz` and, with `--deb`, a .deb package |
 | `make-screenshots.ps1` | documentation screenshots on demo games (real games are not touched) |
+
+GitHub Actions runs the tests on Ubuntu and Windows for every commit and attaches the Linux build to each release.
 
 ## Project structure
 
@@ -127,15 +147,18 @@ src/main/java/ua/uwfix/
 ├── search/                   search algorithms: NaiveSearch, KmpSearch, HorspoolSearch;
 │                             FileScanner — streaming chunked file scan + SHA-256
 ├── scan/                     game discovery: SteamScanner (VDF parser), EpicScanner (JSON),
-│                             GogScanner, UbisoftScanner (registry via reg export), GameLibrary
+│                             GogScanner, UbisoftScanner (registry via reg export),
+│                             HeroicScanner (Linux), GameLibrary
 ├── analysis/                 GameAnalyzer (file selection), EngineDetector, AntiCheatDetector
-├── settings/                 ResolutionUnlocker, IniEditor, UnityPrefs — resolution in game settings
+├── settings/                 ResolutionUnlocker, IniEditor, UnityPrefs — resolution in game settings;
+│                             WinePrefix, WineRegistry (user.reg) — the same inside Proton/Wine
 ├── icon/                     PeIconExtractor (icons from .exe: PE resources, PNG/BMP), GameIconLocator (Steam cache)
 ├── patch/                    Patcher (patch, restore, re-apply), PatchStore (state in JSON)
 ├── cli/                      ReapplyCommand — silent --reapply mode
 ├── i18n/                     I18n, Language — translations (messages_en/uk.properties)
-├── update/                   UpdateChecker (GitHub Releases API), UpdateInstaller (download, SHA-256, replace)
-├── system/                   monitors, administrator rights, autostart, Explorer
+├── update/                   UpdateChecker (GitHub Releases API), UpdateInstaller (download, SHA-256, replace),
+│                             TarArchive (.tar.gz for Linux)
+├── system/                   Os, SystemShell (Windows/Linux differences), monitors, administrator rights, autostart
 └── ui/                       MainController + main.fxml + style.css (MVC), dialogs, cells
 ```
 
@@ -157,10 +180,10 @@ flowchart LR
 
 ## Testing
 
-178 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+200 unit tests (JUnit 5), run on Windows and Linux: ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
-translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask).
+translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask), Linux game discovery (Steam roots, Heroic), reading and editing the Wine registry `user.reg`, finding a game's Proton prefix, unpacking .tar.gz.
 
 Search algorithms on 128 MB of machine-code-like data (`mvnw test -Pbenchmark`):
 
@@ -175,7 +198,7 @@ Horspool skips most of the data and becomes the fastest — that is why UWFix us
 
 ## Tech stack
 
-Java 17 · JavaFX 21 (FXML + CSS) · Gson · JUnit 5 · Maven · jpackage/jlink · WiX Toolset 3
+Java 17 · JavaFX 21 (FXML + CSS) · Gson · JUnit 5 · Maven · jpackage/jlink · WiX Toolset 3 · GitHub Actions
 
 ## License
 
