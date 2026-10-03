@@ -3,11 +3,14 @@ package ua.uwfix.i18n;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -78,6 +81,44 @@ class I18nTest {
         I18n.setLanguage(Language.EN);
         assertEquals("1 file", I18n.plural("count.files", 1));
         assertEquals("3 files", I18n.plural("count.files", 3));
+    }
+
+    /** Кожен ключ, який використовують FXML і код, має бути у словнику. */
+    @Test
+    void everyUsedKeyExists() throws Exception {
+        Map<String, String> en = I18n.dictionary(Language.EN);
+        Set<String> missing = new TreeSet<>();
+
+        String fxml = Files.readString(Path.of("src/main/resources/ua/uwfix/ui/main.fxml"));
+        Matcher fx = Pattern.compile("=\"%([\\w.]+)\"").matcher(fxml);
+        while (fx.find()) {
+            if (!en.containsKey(fx.group(1))) {
+                missing.add("main.fxml: " + fx.group(1));
+            }
+        }
+
+        Pattern literal = Pattern.compile("\"([a-z][a-zA-Z]*(?:\\.[a-zA-Z]+)+)\"");
+        try (Stream<Path> files = Files.walk(Path.of("src/main/java"))) {
+            for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
+                for (String line : Files.readAllLines(file)) {
+                    // ключі передаються в I18n.t/plural або вибираються у switch: case X -> "ключ"
+                    if (!line.contains("I18n.") && !line.matches(".*case .*-> \".*")) {
+                        continue;
+                    }
+                    Matcher m = literal.matcher(line);
+                    while (m.find()) {
+                        String key = m.group(1);
+                        if (key.matches(".*\\.(fxml|css|png|ico|json|log|exe|dll|properties)")) {
+                            continue; // ім'я файлу, а не ключ перекладу
+                        }
+                        if (!en.containsKey(key) && !en.containsKey(key + ".one")) {
+                            missing.add(file.getFileName() + ": " + key);
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(missing.isEmpty(), "Ключів немає у словнику: " + missing);
     }
 
     @Test

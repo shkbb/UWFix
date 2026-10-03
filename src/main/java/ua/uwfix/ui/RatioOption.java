@@ -1,5 +1,6 @@
 package ua.uwfix.ui;
 
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 
 /**
@@ -12,7 +13,7 @@ import ua.uwfix.model.AspectRatio;
 public record RatioOption(String label, AspectRatio ratio, boolean custom) {
 
     static RatioOption monitor(int index, AspectRatio ratio) {
-        return new RatioOption("Монітор " + index + " · " + ratio, ratio, false);
+        return new RatioOption(I18n.t("ratio.monitor", String.valueOf(index), ratio.toString()), ratio, false);
     }
 
     static RatioOption preset(AspectRatio ratio) {
@@ -20,11 +21,11 @@ public record RatioOption(String label, AspectRatio ratio, boolean custom) {
     }
 
     static RatioOption own(AspectRatio ratio) {
-        return new RatioOption("Своя · " + ratio, ratio, false);
+        return new RatioOption(I18n.t("ratio.own", ratio.toString()), ratio, false);
     }
 
     static RatioOption other() {
-        return new RatioOption("Інша роздільна здатність…", null, true);
+        return new RatioOption(I18n.t("ratio.other"), null, true);
     }
 
     @Override

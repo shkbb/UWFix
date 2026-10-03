@@ -11,6 +11,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Window;
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 
 import java.util.Objects;
@@ -36,7 +37,7 @@ final class Dialogs {
     static boolean confirm(Window owner, String header, String content, String yesText) {
         Alert alert = create(Alert.AlertType.CONFIRMATION, owner, header, content);
         ButtonType yes = new ButtonType(yesText, ButtonBar.ButtonData.OK_DONE);
-        ButtonType no = new ButtonType("Скасувати", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType no = new ButtonType(I18n.t("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
         alert.getButtonTypes().setAll(yes, no);
         ((javafx.scene.control.Button) alert.getDialogPane().lookupButton(yes)).setDefaultButton(false);
         ((javafx.scene.control.Button) alert.getDialogPane().lookupButton(no)).setDefaultButton(true);
@@ -47,8 +48,8 @@ final class Dialogs {
     static Optional<AspectRatio> askResolution(Window owner, AspectRatio initial) {
         Dialog<AspectRatio> dialog = new Dialog<>();
         dialog.initOwner(owner);
-        dialog.setTitle("Своя роздільна здатність");
-        dialog.setHeaderText("Вкажи роздільну здатність монітора");
+        dialog.setTitle(I18n.t("dialog.resolution.title"));
+        dialog.setHeaderText(I18n.t("dialog.resolution.header"));
         style(dialog.getDialogPane());
 
         TextField width = numberField(initial == null ? "" : String.valueOf(initial.width()));
@@ -60,20 +61,21 @@ final class Dialogs {
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(6, 0, 0, 0));
-        grid.addRow(0, new Label("Ширина"), width);
-        grid.addRow(1, new Label("Висота"), height);
+        grid.addRow(0, new Label(I18n.t("dialog.resolution.width")), width);
+        grid.addRow(1, new Label(I18n.t("dialog.resolution.height")), height);
         grid.add(preview, 0, 2, 2, 1);
         dialog.getDialogPane().setContent(grid);
 
-        ButtonType ok = new ButtonType("Обрати", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().setAll(ok, ButtonType.CANCEL);
+        ButtonType ok = new ButtonType(I18n.t("dialog.resolution.ok"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancel = new ButtonType(I18n.t("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().setAll(ok, cancel);
         javafx.scene.Node okButton = dialog.getDialogPane().lookupButton(ok);
 
         Runnable validate = () -> {
             AspectRatio r = parse(width.getText(), height.getText());
             okButton.setDisable(r == null);
-            preview.setText(r == null ? "Введи дві додатні цілі величини" : "Співвідношення: " + r.valueText()
-                    + " (" + r.marketingName() + ")");
+            preview.setText(r == null ? I18n.t("dialog.resolution.invalid")
+                    : I18n.t("dialog.resolution.preview", r.valueText(), r.marketingName()));
         };
         width.textProperty().addListener((o, a, b) -> validate.run());
         height.textProperty().addListener((o, a, b) -> validate.run());

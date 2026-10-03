@@ -51,7 +51,7 @@ import ua.uwfix.patch.Patcher.FileState;
 import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
 import ua.uwfix.system.WindowsShell;
-import ua.uwfix.util.Plural;
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.util.ProgressListener;
 
 import java.io.File;
@@ -167,15 +167,14 @@ public final class MainController {
             filteredGames.setPredicate(g -> q.isEmpty() || g.name().toLowerCase(Locale.ROOT).contains(q));
         });
 
-        autostartCheck.setTooltip(new Tooltip("Steam і інші лаунчери при оновленні гри замінюють пропатчений файл.\n"
-                + "З цією опцією UWFix при вході у Windows тихо перевіряє ігри й застосовує фікс знову."));
+        autostartCheck.setTooltip(new Tooltip(I18n.t("tooltip.autostart")));
         autostartCheck.selectedProperty().addListener((o, was, now) -> onAutostartToggled(now));
-        refreshButton.setTooltip(new Tooltip("Оновити список ігор"));
-        doubleCheck.setTooltip(new Tooltip("Рідкісний випадок: деякі ігри зберігають 16:9 як 64-бітне число."));
+        refreshButton.setTooltip(new Tooltip(I18n.t("tooltip.refresh")));
+        doubleCheck.setTooltip(new Tooltip(I18n.t("tooltip.double")));
         versionLabel.setText(App.NAME + " " + App.VERSION);
         outdatedBanner.managedProperty().bind(outdatedBanner.visibleProperty());
         progressBox.setVisible(false);
-        showPlaceholder("Шукаю встановлені ігри…", "Steam, Epic Games, GOG, Ubisoft Connect");
+        showPlaceholder(I18n.t("placeholder.searching.title"), I18n.t("placeholder.searching.text"));
     }
 
     /** Викликається після показу вікна. */
@@ -186,8 +185,9 @@ public final class MainController {
         }
         List<AspectRatio> monitors = Displays.monitors();
         fillRatioCombo(monitors);
-        monitorLabel.setText(monitors.isEmpty() ? "Монітор не визначено"
-                : "Монітор: " + monitors.get(0) + (monitors.size() > 1 ? " (+" + (monitors.size() - 1) + ")" : ""));
+        monitorLabel.setText(monitors.isEmpty() ? I18n.t("status.monitor.none")
+                : monitors.size() == 1 ? I18n.t("status.monitor", monitors.get(0).toString())
+                : I18n.t("status.monitor.more", monitors.get(0).toString(), monitors.size() - 1));
         checkAdminAsync();
         loadGames(context.options().select());
         if (context.options().snapshot() != null) {
@@ -208,7 +208,7 @@ public final class MainController {
         fileTable.setItems(rows);
         fileTable.setEditable(true);
         fileTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        fileTable.setPlaceholder(new Label("Файлів з числом 16:9 не знайдено"));
+        fileTable.setPlaceholder(new Label(I18n.t("table.empty")));
 
         TableColumn<FileRow, Boolean> selectCol = new TableColumn<>("");
         selectCol.setCellValueFactory(c -> c.getValue().selectedProperty());
@@ -217,24 +217,24 @@ public final class MainController {
         selectCol.setSortable(false);
         fixedWidth(selectCol, 40);
 
-        TableColumn<FileRow, String> fileCol = new TableColumn<>("Файл");
+        TableColumn<FileRow, String> fileCol = new TableColumn<>(I18n.t("table.file"));
         fileCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 c.getValue().candidate().relative().toString()));
         fileCol.setPrefWidth(380);
         fileCol.setMinWidth(180);
 
-        TableColumn<FileRow, String> sizeCol = new TableColumn<>("Розмір");
+        TableColumn<FileRow, String> sizeCol = new TableColumn<>(I18n.t("table.size"));
         sizeCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(
                 formatSize(c.getValue().candidate().size())));
         fixedWidth(sizeCol, 92);
         sizeCol.setStyle("-fx-alignment: CENTER-RIGHT;");
 
-        TableColumn<FileRow, String> matchesCol = new TableColumn<>("Знайдено 16:9");
+        TableColumn<FileRow, String> matchesCol = new TableColumn<>(I18n.t("table.found"));
         matchesCol.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(matchesText(c.getValue())));
         fixedWidth(matchesCol, 130);
         matchesCol.setStyle("-fx-alignment: CENTER;");
 
-        TableColumn<FileRow, FileRow> stateCol = new TableColumn<>("Стан");
+        TableColumn<FileRow, FileRow> stateCol = new TableColumn<>(I18n.t("table.state"));
         stateCol.setCellValueFactory(c -> new javafx.beans.property.SimpleObjectProperty<>(c.getValue()));
         stateCol.setCellFactory(col -> new StateCell());
         stateCol.setPrefWidth(200);
@@ -324,7 +324,7 @@ public final class MainController {
     private void persistRatio(AspectRatio ratio) {
         store.setTarget(ratio.width(), ratio.height());
         saveQuietly();
-        log("Цільова роздільна здатність: " + ratio + ", значення " + ratio.valueText());
+        log(I18n.t("log.target", ratio.toString(), ratio.valueText()));
     }
 
     private AspectRatio targetRatio() {
@@ -336,7 +336,7 @@ public final class MainController {
 
     private void loadGames(String selectName) {
         loadingGames = true;
-        gamesCountLabel.setText("Пошук ігор…");
+        gamesCountLabel.setText(I18n.t("games.searching"));
         List<Game> manual = manualGames();
         Task<List<Game>> task = new Task<>() {
             @Override
@@ -349,8 +349,8 @@ public final class MainController {
             String keepId = currentGame != null ? currentGame.id() : null;
             games.setAll(task.getValue());
             refreshBadges();
-            gamesCountLabel.setText("Ігор знайдено: " + games.size());
-            log("Список ігор оновлено: " + games.size());
+            gamesCountLabel.setText(I18n.t("games.count", games.size()));
+            log(I18n.t("log.gamesUpdated", games.size()));
 
             Game toSelect = null;
             for (Game g : games) {
@@ -364,17 +364,15 @@ public final class MainController {
                 gameList.getSelectionModel().select(toSelect);
                 gameList.scrollTo(toSelect);
             } else if (games.isEmpty()) {
-                showPlaceholder("Ігор не знайдено",
-                        "Додай гру вручну кнопкою «＋ Додати вручну» — достатньо вказати її папку.");
+                showPlaceholder(I18n.t("placeholder.noGames.title"), I18n.t("placeholder.noGames.text"));
             } else {
-                showPlaceholder("Обери гру зі списку зліва",
-                        "UWFix знайде у файлах гри співвідношення 16:9 і замінить його на співвідношення твого монітора.");
+                showPlaceholder(I18n.t("placeholder.choose.title"), I18n.t("placeholder.choose.text"));
             }
         });
         task.setOnFailed(e -> {
             loadingGames = false;
-            gamesCountLabel.setText("Помилка пошуку ігор");
-            log("Помилка пошуку ігор: " + task.getException());
+            gamesCountLabel.setText(I18n.t("games.error"));
+            log(I18n.t("log.gamesError", String.valueOf(task.getException())));
         });
         context.executor().submit(task);
     }
@@ -400,16 +398,16 @@ public final class MainController {
     @FXML
     private void onAddGame() {
         DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Обери папку, куди встановлено гру");
+        chooser.setTitle(I18n.t("addGame.chooser"));
         File dir = chooser.showDialog(stage);
         if (dir == null) {
             return;
         }
         TextInputDialog nameDialog = new TextInputDialog(dir.getName());
         nameDialog.initOwner(stage);
-        nameDialog.setTitle("Додати гру");
-        nameDialog.setHeaderText("Як назвати гру у списку?");
-        nameDialog.setContentText("Назва:");
+        nameDialog.setTitle(I18n.t("addGame.title"));
+        nameDialog.setHeaderText(I18n.t("addGame.header"));
+        nameDialog.setContentText(I18n.t("addGame.name"));
         Dialogs.style(nameDialog.getDialogPane());
         Optional<String> name = nameDialog.showAndWait().map(String::strip).filter(s -> !s.isEmpty());
         if (name.isEmpty()) {
@@ -417,14 +415,14 @@ public final class MainController {
         }
         store.addManualGame(new ManualGameEntry(name.get(), dir.getAbsolutePath()));
         saveQuietly();
-        log("Додано гру вручну: " + name.get() + " (" + dir + ")");
+        log(I18n.t("log.added", name.get(), dir.toString()));
         loadGames(name.get());
     }
 
     private void removeManualGame(Game game) {
         store.removeManualGame(game.installDir());
         saveQuietly();
-        log("Прибрано зі списку: " + game.name());
+        log(I18n.t("log.removed", game.name()));
         if (currentGame != null && currentGame.id().equals(game.id())) {
             currentGame = null;
         }
@@ -447,9 +445,7 @@ public final class MainController {
             }
         }
         outdatedBanner.setVisible(outdated > 0);
-        outdatedLabel.setText(outdated == 1
-                ? "Одна гра оновилась, і фікс злетів. Застосувати його знову?"
-                : "Ігор оновилось: " + outdated + ". Фікс злетів — застосувати знову?");
+        outdatedLabel.setText(I18n.plural("banner.outdated", outdated));
         gameList.refresh();
     }
 
@@ -464,7 +460,7 @@ public final class MainController {
         if (game == null) {
             if (!busy) {
                 currentGame = null;
-                showPlaceholder("Обери гру зі списку зліва", "");
+                showPlaceholder(I18n.t("placeholder.choose.title"), "");
             }
             return;
         }
@@ -477,7 +473,7 @@ public final class MainController {
         gamePath.setText(game.installDir().toString());
         chips.getChildren().setAll(chip(game.source().displayName(), "chip"));
         engineHint.setText("");
-        setStatus("…", "status-idle", "Аналіз файлів гри…", "Шукаю виконувані файли та число 16:9 у них.");
+        setStatus("…", "status-idle", I18n.t("status.analyzing.title"), I18n.t("status.analyzing.text"));
         analyze(game);
     }
 
@@ -502,8 +498,8 @@ public final class MainController {
             hideProgress();
             if (game.equals(currentGame)) {
                 Throwable ex = task.getException();
-                setStatus("!", "status-error", "Не вдалося проаналізувати гру", String.valueOf(ex.getMessage()));
-                log("Помилка аналізу " + game.name() + ": " + ex);
+                setStatus("!", "status-error", I18n.t("status.analysisFailed"), String.valueOf(ex.getMessage()));
+                log(I18n.t("log.analysisFailed", game.name(), String.valueOf(ex)));
             }
         });
         task.setOnCancelled(e -> hideProgress());
@@ -514,8 +510,8 @@ public final class MainController {
         currentAnalysis = analysis;
         chips.getChildren().setAll(
                 chip(analysis.game().source().displayName(), "chip"),
-                chip("Рушій: " + analysis.engine().displayName(), "chip"));
-        analysis.antiCheat().ifPresent(ac -> chips.getChildren().add(chip("⚠ Античит: " + ac, "chip-danger")));
+                chip(I18n.t("chip.engine", analysis.engine().displayName()), "chip"));
+        analysis.antiCheat().ifPresent(ac -> chips.getChildren().add(chip(I18n.t("chip.antiCheat", ac), "chip-danger")));
         engineHint.setText(analysis.engine().hint());
 
         List<FileRow> newRows = new ArrayList<>();
@@ -529,8 +525,8 @@ public final class MainController {
         rows.setAll(newRows);
 
         int found = analysis.candidates().stream().mapToInt(BinaryCandidate::totalMatches).sum();
-        log(analysis.game().name() + ": переглянуто файлів — " + analysis.scannedFiles()
-                + ", знайдено 16:9 — " + found + ", рушій — " + analysis.engine().displayName());
+        log(I18n.t("log.analysis", analysis.game().name(), analysis.scannedFiles(), found,
+                analysis.engine().displayName()));
         updateStatus();
     }
 
@@ -549,27 +545,22 @@ public final class MainController {
         long selectedCount = rows.stream().filter(FileRow::isSelected).count();
 
         if (rows.isEmpty()) {
-            setStatus("∅", "status-idle", "Число 16:9 не знайдено",
-                    "У файлах гри немає 16:9 у стандартному вигляді. Можливо, гра вже підтримує твій монітор "
-                            + "або зберігає співвідношення інакше — тоді цей метод не допоможе.");
+            setStatus("∅", "status-idle", I18n.t("status.notFound.title"), I18n.t("status.notFound.text"));
         } else if (!changed.isEmpty()) {
-            setStatus("⟳", "status-warn", "Гра оновилась — фікс злетів",
-                    "Файли змінились після патчу (оновлення гри або перевірка цілісності). "
-                            + "Натисни «Застосувати знову».");
+            setStatus("⟳", "status-warn", I18n.t("status.updated.title"), I18n.t("status.updated.text"));
         } else if (!patched.isEmpty()) {
             PatchRecord r = patched.get(0).record();
             int count = patched.stream().mapToInt(p -> p.record().changes().size()).sum();
-            setStatus("✓", "status-ok", "Виправлено для " + r.ratio().resolutionText(),
-                    "Замінено " + Plural.of(count, "значення", "значення", "значень") + " у "
-                            + filesLocative(patched.size()) + ". Резервні копії лежать поруч з оригіналами (*"
-                            + Patcher.BACKUP_SUFFIX + ").");
+            setStatus("✓", "status-ok", I18n.t("status.fixed.title", r.ratio().resolutionText()),
+                    I18n.t("status.fixed.text", I18n.plural("count.values", count),
+                            I18n.plural("count.inFiles", patched.size()), Patcher.BACKUP_SUFFIX));
         } else {
-            setStatus("○", "status-idle", "Ще не виправлено",
-                    "16:9 знайдено " + Plural.of(matches, "раз", "рази", "разів") + " у "
-                            + filesLocative(rows.size()) + ". Рекомендовані файли вже позначено.");
+            setStatus("○", "status-idle", I18n.t("status.notFixed.title"),
+                    I18n.t("status.notFixed.text", I18n.plural("count.times", matches),
+                            I18n.plural("count.inFiles", rows.size())));
         }
         if (target != null && target.isStandard()) {
-            statusText.setText(statusText.getText() + "\nОбрано 16:9 — змінювати нічого. Обери вгорі роздільну здатність свого монітора.");
+            statusText.setText(statusText.getText() + "\n" + I18n.t("status.standardSelected"));
         }
 
         List<FileRow> selectedRows = rows.stream().filter(FileRow::isSelected).toList();
@@ -578,13 +569,13 @@ public final class MainController {
         boolean otherRatio = selectedRows.stream().anyMatch(r ->
                 r.state() == FileState.PATCHED && !r.record().ratio().equals(target));
         if (!changed.isEmpty()) {
-            fixButton.setText("Застосувати знову");
+            fixButton.setText(I18n.t("action.reapply"));
         } else if (alreadyDone) {
-            fixButton.setText("✓ Уже виправлено");
+            fixButton.setText(I18n.t("action.alreadyFixed"));
         } else if (otherRatio && target != null) {
-            fixButton.setText("Перевиправити під " + target.resolutionText());
+            fixButton.setText(I18n.t("action.refix", target.resolutionText()));
         } else {
-            fixButton.setText("Виправити катсцени");
+            fixButton.setText(I18n.t("action.fix"));
         }
         fixButton.setDisable(busy || selectedCount == 0 || target == null || target.isStandard() || alreadyDone);
         restoreButton.setDisable(busy || rows.stream().noneMatch(r -> r.record() != null));
@@ -601,20 +592,17 @@ public final class MainController {
         }
         List<FileRow> selected = rows.stream().filter(FileRow::isSelected).toList();
         if (selected.isEmpty()) {
-            Dialogs.info(stage, "Не обрано жодного файлу", "Познач у таблиці файли, які треба змінити.");
+            Dialogs.info(stage, I18n.t("dialog.noFiles.header"), I18n.t("dialog.noFiles.text"));
             return;
         }
         Optional<String> antiCheat = currentAnalysis.antiCheat();
-        if (antiCheat.isPresent() && !Dialogs.confirm(stage, "У грі є античит: " + antiCheat.get(),
-                "Зміна файлів онлайн-гри з античитом може призвести до блокування акаунта.\n"
-                        + "Використовуй UWFix лише для одиночних ігор.\n\nВсе одно продовжити?",
-                "Так, я розумію ризик")) {
+        if (antiCheat.isPresent() && !Dialogs.confirm(stage, I18n.t("dialog.antiCheat.header", antiCheat.get()),
+                I18n.t("dialog.antiCheat.text"), I18n.t("dialog.antiCheat.yes"))) {
             return;
         }
         for (FileRow row : selected) {
             if (row.candidate().isExe() && WindowsShell.isRunning(row.candidate().file())) {
-                Dialogs.error(stage, "Гра запущена", "Закрий " + row.candidate().fileName()
-                        + " і спробуй ще раз: запущений файл змінювати не можна.");
+                Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.running.text", row.candidate().fileName()));
                 return;
             }
         }
@@ -622,7 +610,7 @@ public final class MainController {
         Set<ValueFormat> formats = doubleCheck.isSelected()
                 ? EnumSet.allOf(ValueFormat.class) : EnumSet.of(ValueFormat.FLOAT32);
         List<Path> files = selected.stream().map(r -> r.candidate().file()).toList();
-        log("Виправлення " + game.name() + " для " + target + " (" + target.valueText() + ")…");
+        log(I18n.t("log.fixing", game.name(), target.toString(), target.valueText()));
 
         runBusy(listener -> {
             List<String> report = new ArrayList<>();
@@ -631,8 +619,8 @@ public final class MainController {
                 Patcher.PatchOutcome outcome = patcher.apply(game.id(), game.name(), file, target, formats,
                         part(listener, i, files.size()));
                 report.add(outcome.nothingFound()
-                        ? file.getFileName() + ": 16:9 не знайдено, файл не змінено"
-                        : file.getFileName() + ": замінено значень — " + outcome.replaced());
+                        ? I18n.t("report.notFound", file.getFileName().toString())
+                        : I18n.t("report.replaced", file.getFileName().toString(), outcome.replaced()));
             }
             return report;
         }, report -> {
@@ -654,21 +642,21 @@ public final class MainController {
         }
         for (Path f : files) {
             if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && WindowsShell.isRunning(f)) {
-                Dialogs.error(stage, "Гра запущена", "Закрий " + f.getFileName() + " і спробуй ще раз.");
+                Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.runningShort.text", f.getFileName().toString()));
                 return;
             }
         }
-        log("Відновлення оригіналу " + game.name() + "…");
+        log(I18n.t("log.restoring", game.name()));
         runBusy(listener -> {
             List<String> report = new ArrayList<>();
             for (int i = 0; i < files.size(); i++) {
                 Path file = files.get(i);
                 Patcher.RestoreOutcome outcome = patcher.restore(file, part(listener, i, files.size()));
-                report.add(file.getFileName() + ": " + switch (outcome) {
-                    case RESTORED -> "оригінал відновлено";
-                    case ALREADY_ORIGINAL -> "файл уже був оригінальним";
-                    case REPLACED_BY_UPDATE -> "файл замінило оновлення гри, патчу в ньому вже немає";
-                });
+                report.add(I18n.t(switch (outcome) {
+                    case RESTORED -> "report.restored";
+                    case ALREADY_ORIGINAL -> "report.alreadyOriginal";
+                    case REPLACED_BY_UPDATE -> "report.replacedByUpdate";
+                }, file.getFileName().toString()));
             }
             return report;
         }, report -> {
@@ -688,19 +676,21 @@ public final class MainController {
         for (PatchRecord r : outdated) {
             Path f = Path.of(r.file());
             if (f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".exe") && WindowsShell.isRunning(f)) {
-                Dialogs.error(stage, "Гра запущена", "Закрий " + r.gameName() + " і спробуй ще раз.");
+                Dialogs.error(stage, I18n.t("dialog.running.header"), I18n.t("dialog.runningShort.text", r.gameName()));
                 return;
             }
         }
-        log("Повторне застосування фіксу для оновлених ігор: " + outdated.size() + "…");
+        log(I18n.t("log.reapplying", outdated.size()));
         Game game = currentGame;
         runBusy(listener -> {
             List<String> report = new ArrayList<>();
             for (int i = 0; i < outdated.size(); i++) {
                 PatchRecord r = outdated.get(i);
                 Patcher.PatchOutcome outcome = patcher.reapply(r, part(listener, i, outdated.size()));
-                report.add(r.gameName() + " / " + Path.of(r.file()).getFileName() + ": "
-                        + (outcome.nothingFound() ? "16:9 більше не знайдено" : "замінено значень — " + outcome.replaced()));
+                String name = Path.of(r.file()).getFileName().toString();
+                report.add(outcome.nothingFound()
+                        ? I18n.t("report.reapplyNotFound", r.gameName(), name)
+                        : I18n.t("report.reapplied", r.gameName(), name, outcome.replaced()));
             }
             return report;
         }, report -> {
@@ -782,31 +772,29 @@ public final class MainController {
 
     private void handleError(Throwable ex) {
         if (ex instanceof PatchException pe) {
-            log("Помилка: " + pe.getMessage());
+            log(I18n.t("log.error", pe.getMessage()));
             switch (pe.kind()) {
                 case NEED_ADMIN -> offerElevation(pe.getMessage());
-                case FILE_IN_USE -> Dialogs.error(stage, "Файл зайнятий", pe.getMessage());
-                case NOTHING_TO_DO -> Dialogs.info(stage, "Змінювати нічого", pe.getMessage());
-                default -> Dialogs.error(stage, "Операцію зупинено", pe.getMessage());
+                case FILE_IN_USE -> Dialogs.error(stage, I18n.t("dialog.inUse.header"), pe.getMessage());
+                case NOTHING_TO_DO -> Dialogs.info(stage, I18n.t("dialog.nothing.header"), pe.getMessage());
+                default -> Dialogs.error(stage, I18n.t("dialog.stopped.header"), pe.getMessage());
             }
         } else if (ex instanceof IOException io) {
-            log("Помилка вводу-виводу: " + io);
-            Dialogs.error(stage, "Помилка роботи з файлом", String.valueOf(io.getMessage()));
+            log(I18n.t("log.ioError", String.valueOf(io)));
+            Dialogs.error(stage, I18n.t("dialog.io.header"), String.valueOf(io.getMessage()));
         } else {
-            log("Неочікувана помилка: " + ex);
-            Dialogs.error(stage, "Неочікувана помилка", String.valueOf(ex));
+            log(I18n.t("log.unexpected", String.valueOf(ex)));
+            Dialogs.error(stage, I18n.t("dialog.unexpected.header"), String.valueOf(ex));
         }
     }
 
     private void offerElevation(String message) {
-        if (Dialogs.confirm(stage, "Потрібні права адміністратора",
-                message + "\n\nІгри в Program Files можна змінювати лише з правами адміністратора. "
-                        + "Перезапустити UWFix від імені адміністратора?", "Перезапустити")) {
+        if (Dialogs.confirm(stage, I18n.t("dialog.admin.header"), I18n.t("dialog.admin.text", message),
+                I18n.t("dialog.admin.yes"))) {
             if (WindowsShell.relaunchElevated()) {
                 Platform.exit();
             } else {
-                Dialogs.error(stage, "Не вдалося перезапустити",
-                        "Запусти UWFix вручну: правою кнопкою → «Запуск від імені адміністратора».");
+                Dialogs.error(stage, I18n.t("dialog.relaunchFailed.header"), I18n.t("dialog.relaunchFailed.text"));
             }
         }
     }
@@ -860,7 +848,7 @@ public final class MainController {
             }
         };
         task.setOnSucceeded(e -> {
-            adminLabel.setText(task.getValue()[0] ? "Права адміністратора: так" : "Права адміністратора: ні");
+            adminLabel.setText(I18n.t(task.getValue()[0] ? "status.admin.yes" : "status.admin.no"));
             updatingAutostart = true;
             autostartCheck.setSelected(task.getValue()[1]);
             updatingAutostart = false;
@@ -876,9 +864,9 @@ public final class MainController {
         }
         boolean ok = enable ? Autostart.enable() : Autostart.disable();
         if (ok) {
-            log(enable ? "Автоперевірку при вході у Windows увімкнено" : "Автоперевірку вимкнено");
+            log(I18n.t(enable ? "log.autostart.on" : "log.autostart.off"));
         } else {
-            log("Не вдалося змінити автозапуск");
+            log(I18n.t("log.autostart.failed"));
             updatingAutostart = true;
             autostartCheck.setSelected(!enable);
             updatingAutostart = false;
@@ -908,14 +896,9 @@ public final class MainController {
         return label;
     }
 
-    /** «1 файлі», «3 файлах» — місцевий відмінок після прийменника «у». */
-    private static String filesLocative(int n) {
-        return n + (n % 10 == 1 && n % 100 != 11 ? " файлі" : " файлах");
-    }
-
     private static String matchesText(FileRow row) {
         if (row.state() == FileState.PATCHED && row.record() != null) {
-            return "замінено " + row.record().changes().size();
+            return I18n.t("table.replaced", row.record().changes().size());
         }
         int f = row.candidate().matches(ValueFormat.FLOAT32);
         int d = row.candidate().matches(ValueFormat.FLOAT64);
@@ -927,9 +910,9 @@ public final class MainController {
 
     static String formatSize(long bytes) {
         if (bytes >= 1024L * 1024) {
-            return String.format(Locale.ROOT, "%.1f МБ", bytes / (1024.0 * 1024));
+            return I18n.t("size.mb", String.format(Locale.ROOT, "%.1f", bytes / (1024.0 * 1024)));
         }
-        return String.format(Locale.ROOT, "%d КБ", Math.max(1, bytes / 1024));
+        return I18n.t("size.kb", String.valueOf(Math.max(1, bytes / 1024)));
     }
 
     private void log(String message) {
@@ -945,7 +928,7 @@ public final class MainController {
         try {
             store.save();
         } catch (IOException e) {
-            log("Не вдалося зберегти налаштування: " + e.getMessage());
+            log(I18n.t("log.saveFailed", e.getMessage()));
         }
     }
 
@@ -967,16 +950,16 @@ public final class MainController {
             label.getStyleClass().removeAll("badge-ok", "badge-warn", "badge-accent", "badge-muted");
             switch (row.state()) {
                 case PATCHED -> {
-                    label.setText("✓ Виправлено · " + row.record().ratio().resolutionText());
+                    label.setText(I18n.t("state.fixed", row.record().ratio().resolutionText()));
                     label.getStyleClass().add("badge-ok");
                 }
                 case CHANGED_AFTER_PATCH -> {
-                    label.setText("⟳ Змінено оновленням");
+                    label.setText(I18n.t("state.changed"));
                     label.getStyleClass().add("badge-warn");
                 }
                 default -> {
                     boolean recommended = row.candidate().recommended();
-                    label.setText(recommended ? "★ Рекомендовано" : "Оригінал");
+                    label.setText(I18n.t(recommended ? "state.recommended" : "state.original"));
                     label.getStyleClass().add(recommended ? "badge-accent" : "badge-muted");
                 }
             }

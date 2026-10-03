@@ -9,6 +9,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.Game;
 import ua.uwfix.model.GameSource;
 
@@ -61,23 +62,23 @@ final class GameCell extends ListCell<Game> {
         badge.getStyleClass().removeAll("badge-ok", "badge-warn");
         switch (badgeProvider.apply(game)) {
             case PATCHED -> {
-                badge.setText("✓ Виправлено");
+                badge.setText(I18n.t("badge.fixed"));
                 badge.getStyleClass().add("badge-ok");
                 badge.setVisible(true);
             }
             case OUTDATED -> {
-                badge.setText("⟳ Оновилась");
+                badge.setText(I18n.t("badge.updated"));
                 badge.getStyleClass().add("badge-warn");
                 badge.setVisible(true);
             }
             default -> badge.setVisible(false);
         }
 
-        MenuItem open = new MenuItem("Відкрити папку гри");
+        MenuItem open = new MenuItem(I18n.t("menu.openFolder"));
         open.setOnAction(e -> onOpenFolder.accept(game));
         ContextMenu menu = new ContextMenu(open);
         if (game.source() == GameSource.MANUAL) {
-            MenuItem remove = new MenuItem("Прибрати зі списку");
+            MenuItem remove = new MenuItem(I18n.t("menu.remove"));
             remove.setOnAction(e -> onRemove.accept(game));
             menu.getItems().add(remove);
         }

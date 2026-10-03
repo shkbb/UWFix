@@ -19,7 +19,8 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
-<!-- Головне вікно UWFix. Логіка — у ua.uwfix.ui.MainController -->
+<!-- Головне вікно UWFix. Логіка — у ua.uwfix.ui.MainController.
+     Тексти «%ключ» беруться зі словників ua/uwfix/i18n/messages_*.properties -->
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             styleClass="root-pane">
 
@@ -31,11 +32,11 @@
             </StackPane>
             <VBox spacing="1" alignment="CENTER_LEFT">
                 <Label text="UWFix" styleClass="app-title"/>
-                <Label text="Катсцени на весь ультраширокий екран — без чорних смуг" styleClass="app-subtitle"/>
+                <Label text="%header.subtitle" styleClass="app-subtitle"/>
             </VBox>
             <Region HBox.hgrow="ALWAYS"/>
             <VBox spacing="5" alignment="CENTER_LEFT">
-                <Label text="ЦІЛЬОВА РОЗДІЛЬНА ЗДАТНІСТЬ" styleClass="caption"/>
+                <Label text="%header.target" styleClass="caption"/>
                 <ComboBox fx:id="ratioCombo" prefWidth="310" styleClass="ratio-combo"/>
             </VBox>
         </HBox>
@@ -44,12 +45,12 @@
     <!-- ===================== Список ігор ===================== -->
     <left>
         <VBox styleClass="sidebar" spacing="10" prefWidth="320" minWidth="260">
-            <TextField fx:id="searchField" promptText="Пошук гри…" styleClass="search-field"/>
+            <TextField fx:id="searchField" promptText="%sidebar.search" styleClass="search-field"/>
             <ListView fx:id="gameList" VBox.vgrow="ALWAYS" styleClass="game-list"/>
-            <CheckBox fx:id="autostartCheck" text="Після оновлень ігор застосовувати фікс автоматично (при вході у Windows)"
+            <CheckBox fx:id="autostartCheck" text="%sidebar.autostart"
                       wrapText="true" styleClass="autostart-check"/>
             <HBox spacing="8">
-                <Button fx:id="addGameButton" text="＋ Додати вручну" onAction="#onAddGame"
+                <Button fx:id="addGameButton" text="%sidebar.add" onAction="#onAddGame"
                         HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="secondary-button"/>
                 <Button fx:id="refreshButton" text="⟳" onAction="#onRefresh" styleClass="icon-button"/>
             </HBox>
@@ -63,7 +64,7 @@
                 <Label text="⟳" styleClass="banner-icon"/>
                 <Label fx:id="outdatedLabel" styleClass="banner-text" wrapText="true" HBox.hgrow="ALWAYS"
                        maxWidth="Infinity"/>
-                <Button fx:id="reapplyAllButton" text="Застосувати знову" onAction="#onReapplyAll"
+                <Button fx:id="reapplyAllButton" text="%action.reapply" onAction="#onReapplyAll"
                         styleClass="accent-button"/>
             </HBox>
 
@@ -91,15 +92,15 @@
 
                     <Label fx:id="engineHint" styleClass="hint" wrapText="true"/>
 
-                    <Label text="ФАЙЛИ ГРИ" styleClass="caption"/>
+                    <Label text="%details.files" styleClass="caption"/>
                     <TableView fx:id="fileTable" VBox.vgrow="ALWAYS" styleClass="file-table" minHeight="140"/>
 
-                    <CheckBox fx:id="doubleCheck" text="Також замінювати 16:9 у форматі double (8 байтів)"/>
+                    <CheckBox fx:id="doubleCheck" text="%details.double"/>
 
                     <HBox spacing="10" alignment="CENTER_LEFT">
-                        <Button fx:id="fixButton" text="Виправити катсцени" onAction="#onFix"
+                        <Button fx:id="fixButton" text="%action.fix" onAction="#onFix"
                                 styleClass="accent-button, big-button"/>
-                        <Button fx:id="restoreButton" text="Відновити оригінал" onAction="#onRestore"
+                        <Button fx:id="restoreButton" text="%action.restore" onAction="#onRestore"
                                 styleClass="secondary-button, big-button"/>
                         <Region HBox.hgrow="ALWAYS"/>
                         <VBox fx:id="progressBox" spacing="4" alignment="CENTER_RIGHT">
@@ -110,7 +111,7 @@
                 </VBox>
             </StackPane>
 
-            <TitledPane fx:id="logPane" text="Журнал" expanded="false" styleClass="log-pane">
+            <TitledPane fx:id="logPane" text="%log.title" expanded="false" styleClass="log-pane">
                 <TextArea fx:id="logArea" editable="false" wrapText="true" prefRowCount="7" styleClass="log-area"/>
             </TitledPane>
         </VBox>

@@ -27,7 +27,7 @@ public final class App extends Application {
         context = AppContext.create(getParameters().getRaw());
         I18n.setLanguage(Language.detect(context.store().state().language()));
 
-        FXMLLoader loader = new FXMLLoader(MainController.class.getResource("main.fxml"));
+        FXMLLoader loader = new FXMLLoader(MainController.class.getResource("main.fxml"), I18n.bundle());
         MainController controller = new MainController(context, stage);
         loader.setController(controller);
         Parent root = loader.load();
