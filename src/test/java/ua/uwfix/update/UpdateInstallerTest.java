@@ -1,6 +1,8 @@
 package ua.uwfix.update;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import ua.uwfix.search.FileScanner;
 
@@ -124,6 +126,30 @@ class UpdateInstallerTest {
         }
     }
 
+    /** Як у справжньому архіві з jlink: ліцензії модулів — посилання на ліцензію java.base. */
+    @Test
+    @DisabledOnOs(OS.WINDOWS) // у Windows посилання створюються лише з особливими правами
+    void tarRestoresRelativeSymlinksInsideArchive() throws Exception {
+        Path archive = dir.resolve("links.tar.gz");
+        try (OutputStream out = new GZIPOutputStream(Files.newOutputStream(archive))) {
+            tarLink(out, "UWFix/lib/runtime/legal/java.xml/LICENSE", "../java.base/LICENSE");
+            tarEntry(out, "UWFix/lib/runtime/legal/java.base/LICENSE", '0', 0644, "GPL".getBytes(StandardCharsets.UTF_8));
+            out.write(new byte[1024]);
+        }
+        Path target = dir.resolve("new");
+        TarArchive.extract(archive, target);
+        Path link = target.resolve("UWFix/lib/runtime/legal/java.xml/LICENSE");
+        assertTrue(Files.isSymbolicLink(link));
+        assertEquals("GPL", Files.readString(link));
+
+        Path evil = dir.resolve("evil-link.tar.gz");
+        try (OutputStream out = new GZIPOutputStream(Files.newOutputStream(evil))) {
+            tarLink(out, "UWFix/passwd", "../../../etc/passwd");
+            out.write(new byte[1024]);
+        }
+        assertThrows(UpdateException.class, () -> TarArchive.extract(evil, dir.resolve("evil")));
+    }
+
     @Test
     void tarRejectsPathsLeavingTheTargetFolder() throws Exception {
         Path archive = dir.resolve("evil.tar.gz");
@@ -162,11 +188,22 @@ class UpdateInstallerTest {
         assertEquals("'it'\\''s'", UpdateInstaller.shQuote("it's"));
     }
 
-    /** Заголовок ustar (512 байт) + вміст, доповнений нулями. */
+    private static void tarLink(OutputStream out, String name, String target) throws IOException {
+        tarEntry(out, name, '2', 0777, new byte[0], target);
+    }
+
     private static void tarEntry(OutputStream out, String name, char type, int mode, byte[] data) throws IOException {
+        tarEntry(out, name, type, mode, data, "");
+    }
+
+    /** Заголовок ustar (512 байт) + вміст, доповнений нулями. */
+    private static void tarEntry(OutputStream out, String name, char type, int mode, byte[] data, String linkName)
+            throws IOException {
         byte[] h = new byte[512];
         byte[] n = name.getBytes(StandardCharsets.UTF_8);
         System.arraycopy(n, 0, h, 0, Math.min(100, n.length));
+        byte[] l = linkName.getBytes(StandardCharsets.UTF_8);
+        System.arraycopy(l, 0, h, 157, Math.min(100, l.length));
         putOctal(h, 100, 8, mode);
         putOctal(h, 108, 8, 0);
         putOctal(h, 116, 8, 0);
