@@ -1,5 +1,6 @@
 package ua.uwfix.patch;
 
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.model.ValueFormat;
 import ua.uwfix.search.FileScanner;
@@ -129,11 +130,10 @@ public final class Patcher {
                               Set<ValueFormat> formats, ProgressListener progress)
             throws IOException, PatchException {
         if (target.isStandard()) {
-            throw new PatchException(PatchException.Kind.NOTHING_TO_DO,
-                    "Обрано співвідношення 16:9 — катсцени вже під нього, змінювати нічого.");
+            throw new PatchException(PatchException.Kind.NOTHING_TO_DO, I18n.t("error.standardRatio"));
         }
         if (formats.isEmpty()) {
-            throw new PatchException(PatchException.Kind.NOTHING_TO_DO, "Не обрано жодного формату чисел.");
+            throw new PatchException(PatchException.Kind.NOTHING_TO_DO, I18n.t("error.noFormats"));
         }
         ensureWritable(file);
 
@@ -141,7 +141,7 @@ public final class Patcher {
         int reverted = 0;
         Optional<PatchRecord> existing = store.find(file);
         if (existing.isPresent()) {
-            progress.update(0, "Перевірка попереднього патчу…");
+            progress.update(0, I18n.t("progress.checkingPrevious"));
             String current = scanner.sha256(file);
             PatchRecord old = existing.get();
             if (current.equalsIgnoreCase(old.patchedSha256())) {
@@ -162,7 +162,7 @@ public final class Patcher {
             finds.add(f.encode(AspectRatio.STANDARD));
             replacements.add(f.encode(target));
         }
-        String label = "Пошук 16:9 у " + file.getFileName();
+        String label = I18n.t("progress.searching", file.getFileName().toString());
         ScanResult scan = scanner.scan(file, finds, scaled(progress, 0.0, 0.45, label));
         if (scan.totalMatches() == 0) {
             return new PatchOutcome(file, 0, reverted);
@@ -171,15 +171,15 @@ public final class Patcher {
         List<PatchChange> changes = buildChanges(scan, finds, replacements);
 
         // 3. Резервна копія.
-        progress.update(0.5, "Резервна копія " + file.getFileName() + "…");
+        progress.update(0.5, I18n.t("progress.backup", file.getFileName().toString()));
         Path backup = backupPath(file);
         Files.copy(file, backup, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
         if (Files.size(backup) != scan.size()) {
-            throw new PatchException(PatchException.Kind.INTEGRITY, "Резервна копія створилась некоректно: " + backup);
+            throw new PatchException(PatchException.Kind.INTEGRITY, I18n.t("error.backupFailed", backup.toString()));
         }
 
         // 4. Запис нових байтів у знайдені місця.
-        progress.update(0.55, "Запис змін у " + file.getFileName() + "…");
+        progress.update(0.55, I18n.t("progress.writing", file.getFileName().toString()));
         try {
             writeChanges(file, changes, false);
         } catch (IOException | PatchException e) {
@@ -190,7 +190,7 @@ public final class Patcher {
         // 5. Контрольна сума результату і запис про патч.
         // Файл уже змінено, тому цей крок не можна скасовувати — інакше зміни лишаться без запису.
         String patchedSha = scanner.scan(file, List.of(),
-                uncancellable(scaled(progress, 0.6, 1.0, "Перевірка результату…"))).sha256();
+                uncancellable(scaled(progress, 0.6, 1.0, I18n.t("progress.verifying")))).sha256();
         PatchRecord record = new PatchRecord(
                 gameId, gameName,
                 file.toAbsolutePath().normalize().toString(),
@@ -203,7 +203,7 @@ public final class Patcher {
                 changes);
         store.put(record);
         store.save();
-        progress.update(1, "Готово");
+        progress.update(1, I18n.t("progress.done"));
         return new PatchOutcome(file, changes.size(), reverted);
     }
 
@@ -221,16 +221,16 @@ public final class Patcher {
     /** Повертає оригінальний вміст файлу і видаляє резервну копію. */
     public RestoreOutcome restore(Path file, ProgressListener progress) throws IOException, PatchException {
         PatchRecord record = store.find(file).orElseThrow(() -> new PatchException(
-                PatchException.Kind.NOT_PATCHED, "Файл " + file.getFileName() + " не змінювався цією програмою."));
+                PatchException.Kind.NOT_PATCHED, I18n.t("error.notPatched", file.getFileName().toString())));
         ensureWritable(file);
 
-        String current = scanner.scan(file, List.of(), scaled(progress, 0, 0.4, "Перевірка " + file.getFileName())).sha256();
+        String current = scanner.scan(file, List.of(), scaled(progress, 0, 0.4, I18n.t("progress.checking", file.getFileName().toString()))).sha256();
         RestoreOutcome outcome;
         if (current.equalsIgnoreCase(record.patchedSha256())) {
-            progress.update(0.5, "Повернення оригінальних байтів…");
+            progress.update(0.5, I18n.t("progress.reverting"));
             revert(file, record);
             String after = scanner.scan(file, List.of(),
-                    uncancellable(scaled(progress, 0.5, 0.9, "Перевірка результату…"))).sha256();
+                    uncancellable(scaled(progress, 0.5, 0.9, I18n.t("progress.verifying")))).sha256();
             if (!after.equalsIgnoreCase(record.originalSha256())) {
                 restoreFromBackup(file, record);
             }
@@ -244,7 +244,7 @@ public final class Patcher {
         Files.deleteIfExists(Path.of(record.backupFile()));
         store.remove(file);
         store.save();
-        progress.update(1, "Готово");
+        progress.update(1, I18n.t("progress.done"));
         return outcome;
     }
 
@@ -298,9 +298,8 @@ public final class Patcher {
                     continue; // уже має потрібне значення
                 }
                 if (!Arrays.equals(actual, expected)) {
-                    throw new PatchException(PatchException.Kind.INTEGRITY, String.format(
-                            "За зміщенням 0x%X очікувались байти %s, а знайдено %s. Файл змінився.",
-                            change.offset(), Hex.spaced(expected), Hex.spaced(actual)));
+                    throw new PatchException(PatchException.Kind.INTEGRITY, I18n.t("error.unexpectedBytes",
+                            String.format("0x%X", change.offset()), Hex.spaced(expected), Hex.spaced(actual)));
                 }
                 ByteBuffer buffer = ByteBuffer.wrap(desired);
                 long position = change.offset();
@@ -341,11 +340,11 @@ public final class Patcher {
         Path backup = Path.of(record.backupFile());
         if (!Files.isRegularFile(backup)) {
             throw new PatchException(PatchException.Kind.INTEGRITY,
-                    "Не вдалося відновити " + file.getFileName() + ": резервної копії немає.");
+                    I18n.t("error.noBackup", file.getFileName().toString()));
         }
         if (!scanner.sha256(backup).equalsIgnoreCase(record.originalSha256())) {
             throw new PatchException(PatchException.Kind.INTEGRITY,
-                    "Резервна копія " + backup.getFileName() + " не збігається з оригіналом.");
+                    I18n.t("error.backupMismatch", backup.getFileName().toString()));
         }
         Files.copy(backup, file, StandardCopyOption.REPLACE_EXISTING);
     }
@@ -358,7 +357,7 @@ public final class Patcher {
         try (FileChannel ignored = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE)) {
             // відкрилось — усе гаразд
         } catch (NoSuchFileException e) {
-            throw new PatchException(PatchException.Kind.INTEGRITY, "Файл не знайдено: " + file, e);
+            throw new PatchException(PatchException.Kind.INTEGRITY, I18n.t("error.fileNotFound", file.toString()), e);
         } catch (AccessDeniedException e) {
             if (isReadOnly(file)) {
                 Files.setAttribute(file, "dos:readonly", false);
@@ -366,10 +365,10 @@ public final class Patcher {
                 return;
             }
             throw new PatchException(PatchException.Kind.NEED_ADMIN,
-                    "Немає прав на зміну " + file.getFileName() + ". Потрібні права адміністратора.", e);
+                    I18n.t("error.needAdmin", file.getFileName().toString()), e);
         } catch (FileSystemException e) {
             throw new PatchException(PatchException.Kind.FILE_IN_USE,
-                    "Файл " + file.getFileName() + " зайнятий іншою програмою. Закрий гру й спробуй ще раз.", e);
+                    I18n.t("error.inUse", file.getFileName().toString()), e);
         }
     }
 

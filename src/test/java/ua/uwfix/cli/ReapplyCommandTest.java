@@ -1,7 +1,10 @@
 package ua.uwfix.cli;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import ua.uwfix.i18n.I18n;
+import ua.uwfix.i18n.Language;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.model.ValueFormat;
 import ua.uwfix.patch.PatchStore;
@@ -23,8 +26,14 @@ class ReapplyCommandTest {
     @TempDir
     Path dir;
 
+    @AfterEach
+    void resetLanguage() {
+        I18n.setLanguage(Language.EN);
+    }
+
     @Test
     void reappliesOnlyFilesChangedByUpdates() throws Exception {
+        I18n.setLanguage(Language.UK); // нижче перевіряється український текст журналу
         byte[] original = new byte[10_000];
         System.arraycopy(ValueFormat.FLOAT32.encode(AspectRatio.STANDARD), 0, original, 500, 4);
         Path updated = dir.resolve("updated.exe");

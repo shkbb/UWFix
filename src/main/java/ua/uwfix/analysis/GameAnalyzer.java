@@ -1,5 +1,6 @@
 package ua.uwfix.analysis;
 
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.model.Game;
 import ua.uwfix.model.ValueFormat;
@@ -82,7 +83,7 @@ public final class GameAnalyzer {
      */
     public GameAnalysis analyze(Game game, Set<Path> trackedFiles, ProgressListener progress) throws IOException {
         Path root = game.installDir();
-        progress.update(-1, "Пошук виконуваних файлів…");
+        progress.update(-1, I18n.t("progress.findingBinaries"));
         List<Path> files = findBinaries(root);
         Set<Path> tracked = normalize(trackedFiles);
         for (Path t : tracked) {
@@ -108,7 +109,7 @@ public final class GameAnalyzer {
             long size = Files.size(file);
             final long before = doneBytes;
             final long total = Math.max(1, totalBytes);
-            String label = "Сканування " + root.relativize(file);
+            String label = I18n.t("progress.scanning", root.relativize(file).toString());
             progress.update((double) before / total, label);
             ScanResult result;
             try {
@@ -142,7 +143,7 @@ public final class GameAnalyzer {
 
         Engine engine = EngineDetector.detect(root);
         List<BinaryCandidate> withRecommendation = recommend(candidates, engine);
-        progress.update(1, "Готово");
+        progress.update(1, I18n.t("progress.done"));
         return new GameAnalysis(game, engine, AntiCheatDetector.detect(game), withRecommendation, files.size());
     }
 

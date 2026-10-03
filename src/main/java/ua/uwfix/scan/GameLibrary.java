@@ -1,5 +1,6 @@
 package ua.uwfix.scan;
 
+import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.Game;
 
 import java.text.Collator;
@@ -43,10 +44,10 @@ public final class GameLibrary {
                 List<Game> found = scanner.scan();
                 int added = addUnique(found, all, seenDirs);
                 if (added > 0) {
-                    log.accept(scanner.name() + ": знайдено ігор — " + added);
+                    log.accept(I18n.t("log.scannerFound", scanner.name(), added));
                 }
             } catch (RuntimeException e) {
-                log.accept(scanner.name() + ": помилка сканування — " + e.getMessage());
+                log.accept(I18n.t("log.scannerError", scanner.name(), e.getMessage()));
             }
         }
         addUnique(manualGames, all, seenDirs);

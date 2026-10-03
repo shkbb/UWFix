@@ -63,14 +63,13 @@ public final class ReapplyCommand {
             try {
                 Patcher.PatchOutcome outcome = patcher.reapply(record, ProgressListener.NONE);
                 reapplied++;
-                log.add(record.gameName() + " / " + file.getFileName() + ": застосовано знову, замін — "
-                        + outcome.replaced());
+                log.add(I18n.t("reapply.done", record.gameName(), file.getFileName().toString(), outcome.replaced()));
             } catch (PatchException | IOException | RuntimeException e) {
                 failed++;
-                log.add(record.gameName() + " / " + file.getFileName() + ": не вдалося — " + e.getMessage());
+                log.add(I18n.t("reapply.failed", record.gameName(), file.getFileName().toString(), e.getMessage()));
             }
         }
-        log.add("Перевірено файлів: " + checked + ", застосовано знову: " + reapplied + ", помилок: " + failed);
+        log.add(I18n.t("reapply.summary", checked, reapplied, failed));
         writeLog(log);
         return new Result(checked, reapplied, failed);
     }

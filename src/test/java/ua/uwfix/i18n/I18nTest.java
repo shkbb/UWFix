@@ -2,6 +2,8 @@ package ua.uwfix.i18n;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import ua.uwfix.analysis.Engine;
+import ua.uwfix.model.GameSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -119,6 +121,21 @@ class I18nTest {
             }
         }
         assertTrue(missing.isEmpty(), "Ключів немає у словнику: " + missing);
+    }
+
+    /** Ключі рушіїв і джерел складаються динамічно, тому перевіряємо їх окремо. */
+    @Test
+    void enginesAndSourcesAreTranslated() {
+        for (Language language : Language.values()) {
+            I18n.setLanguage(language);
+            for (Engine engine : Engine.values()) {
+                assertFalse(engine.displayName().startsWith("engine."), language + ": " + engine);
+                assertFalse(engine.hint().startsWith("engine."), language + ": " + engine);
+            }
+            for (GameSource source : GameSource.values()) {
+                assertFalse(source.displayName().startsWith("source."), language + ": " + source);
+            }
+        }
     }
 
     @Test
