@@ -64,6 +64,13 @@
     <!-- ===================== Деталі гри ===================== -->
     <center>
         <VBox styleClass="content" spacing="12">
+            <HBox fx:id="updateBanner" styleClass="banner, banner-update" alignment="CENTER_LEFT" spacing="12">
+                <Label text="⬆" styleClass="banner-icon"/>
+                <Label fx:id="updateLabel" styleClass="banner-text" wrapText="true" HBox.hgrow="ALWAYS"
+                       maxWidth="Infinity"/>
+                <Hyperlink text="%update.whatsNew" onAction="#onUpdateNotes" styleClass="banner-link"/>
+                <Button fx:id="updateButton" text="%update.install" onAction="#onUpdate" styleClass="accent-button"/>
+            </HBox>
             <HBox fx:id="outdatedBanner" styleClass="banner" alignment="CENTER_LEFT" spacing="12" visible="false">
                 <Label text="⟳" styleClass="banner-icon"/>
                 <Label fx:id="outdatedLabel" styleClass="banner-text" wrapText="true" HBox.hgrow="ALWAYS"

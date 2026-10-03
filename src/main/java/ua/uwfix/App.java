@@ -84,6 +84,11 @@ public final class App extends Application {
     }
 
     private static String readVersion() {
+        // -Duwfix.version=... дозволяє вдати стару версію, щоб перевірити оновлення
+        String override = System.getProperty("uwfix.version");
+        if (override != null && !override.isBlank()) {
+            return override;
+        }
         Properties properties = new Properties();
         try (InputStream in = App.class.getResourceAsStream("version.properties")) {
             if (in != null) {

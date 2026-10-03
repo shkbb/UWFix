@@ -9,6 +9,8 @@ module uwfix {
     requires javafx.controls;
     requires javafx.fxml;
     requires com.google.gson;
+    // HTTP-клієнт для перевірки оновлень на GitHub
+    requires java.net.http;
 
     // Клас App запускає JavaFX через рефлексію
     exports ua.uwfix;

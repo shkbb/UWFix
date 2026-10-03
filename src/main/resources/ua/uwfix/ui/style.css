@@ -354,6 +354,21 @@
     -fx-font-weight: bold;
 }
 
+/* Банер нової версії — синій, щоб не плутати з попередженням про оновлені ігри */
+.banner-update {
+    -fx-background-color: rgba(110, 168, 255, 0.10);
+    -fx-border-color: rgba(110, 168, 255, 0.45);
+}
+
+.banner-update .banner-icon {
+    -fx-text-fill: #6ea8ff;
+}
+
+.banner-link {
+    -fx-text-fill: #9cc2ff;
+    -fx-border-width: 0;
+}
+
 /* ---------- Таблиця файлів ---------- */
 
 .file-table {

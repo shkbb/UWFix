@@ -106,6 +106,18 @@ public final class WindowsShell {
         }
     }
 
+    /** Відкриває веб-сторінку в браузері за замовчуванням (лише https). */
+    public static void openUrl(String url) {
+        if (url == null || !url.startsWith("https://")) {
+            return;
+        }
+        try {
+            new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
+        } catch (IOException ignored) {
+            // браузер недоступний — нічого страшного
+        }
+    }
+
     /** Чи запущено процес з цього виконуваного файлу. */
     public static boolean isRunning(Path exe) {
         String target = exe.toAbsolutePath().normalize().toString();

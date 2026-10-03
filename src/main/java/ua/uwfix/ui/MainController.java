@@ -51,6 +51,8 @@ import ua.uwfix.patch.Patcher.FileState;
 import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
 import ua.uwfix.system.WindowsShell;
+import ua.uwfix.update.ReleaseInfo;
+import ua.uwfix.update.Version;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.i18n.Language;
 import ua.uwfix.util.ProgressListener;
@@ -100,6 +102,10 @@ public final class MainController {
     @FXML private Button addGameButton;
     @FXML private Button refreshButton;
     @FXML private CheckBox autostartCheck;
+    // ---- банер «вийшла нова версія UWFix»
+    @FXML private HBox updateBanner;
+    @FXML private Label updateLabel;
+    @FXML private Button updateButton;
     // ---- банер «ігри оновились»
     @FXML private HBox outdatedBanner;
     @FXML private Label outdatedLabel;
@@ -182,6 +188,8 @@ public final class MainController {
         doubleCheck.setTooltip(new Tooltip(I18n.t("tooltip.double")));
         versionLabel.setText(App.NAME + " " + App.VERSION);
         outdatedBanner.managedProperty().bind(outdatedBanner.visibleProperty());
+        updateBanner.managedProperty().bind(updateBanner.visibleProperty());
+        updateBanner.setVisible(false);
         progressBox.setVisible(false);
         showPlaceholder(I18n.t("placeholder.searching.title"), I18n.t("placeholder.searching.text"));
     }
@@ -191,6 +199,9 @@ public final class MainController {
         if (context.options().renderIcon() != null) {
             renderIconAndExit(context.options().renderIcon());
             return;
+        }
+        if (context.options().updatedTo() != null) {
+            log(I18n.t("log.updated", context.options().updatedTo()));
         }
         start(context.options().select(), null);
     }
@@ -207,9 +218,68 @@ public final class MainController {
                 : monitors.size() == 1 ? I18n.t("status.monitor", monitors.get(0).toString())
                 : I18n.t("status.monitor.more", monitors.get(0).toString(), monitors.size() - 1));
         checkAdminAsync();
+        checkUpdatesAsync();
         loadGames(selectName, selectId);
         if (context.options().snapshot() != null) {
             scheduleSnapshot(context.options().snapshot());
+        }
+    }
+
+    // ================================================================== оновлення програми
+
+    /** Питає GitHub про нову версію у фоні; без інтернету просто нічого не показує. */
+    private void checkUpdatesAsync() {
+        if (context.updateChecked()) {
+            showUpdate(context.availableUpdate());
+            return;
+        }
+        Version current = Version.parse(App.VERSION);
+        if (current == null || !context.options().shouldCheckUpdates()) {
+            context.setUpdateResult(null);
+            return;
+        }
+        Thread thread = new Thread(() -> {
+            ReleaseInfo release = null;
+            try {
+                release = context.updateChecker().check(current).orElse(null);
+            } catch (IOException | RuntimeException e) {
+                // немає інтернету або GitHub недоступний — перевіримо наступного разу
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            ReleaseInfo result = release;
+            Platform.runLater(() -> {
+                context.setUpdateResult(result);
+                showUpdate(result);
+                if (result != null) {
+                    log(I18n.t("log.updateAvailable", result.version().toString(), App.VERSION));
+                }
+            });
+        }, "uwfix-update-check");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void showUpdate(ReleaseInfo release) {
+        updateBanner.setVisible(release != null);
+        if (release != null) {
+            updateLabel.setText(I18n.t("update.available", release.version().toString()));
+        }
+    }
+
+    @FXML
+    private void onUpdateNotes() {
+        ReleaseInfo release = context.availableUpdate();
+        if (release != null) {
+            WindowsShell.openUrl(release.pageUrl());
+        }
+    }
+
+    @FXML
+    private void onUpdate() {
+        ReleaseInfo release = context.availableUpdate();
+        if (release != null) {
+            WindowsShell.openUrl(release.pageUrl());
         }
     }
 
@@ -840,6 +910,7 @@ public final class MainController {
         refreshButton.setDisable(value);
         ratioCombo.setDisable(value);
         languageCombo.setDisable(value);
+        updateButton.setDisable(value);
         reapplyAllButton.setDisable(value);
         fileTable.setDisable(value);
         doubleCheck.setDisable(value);
@@ -1011,6 +1082,9 @@ public final class MainController {
             boolean analysing = analysisTask != null && !analysisTask.isDone();
             if (!loadingGames && !busy && !analysing) {
                 String action = actions.peek();
+                if ("update".equals(action) && !context.updateChecked()) {
+                    return; // чекаємо відповіді GitHub
+                }
                 if (action != null) {
                     actions.poll();
                     if (action.startsWith("lang:")) {
