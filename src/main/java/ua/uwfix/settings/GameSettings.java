@@ -20,7 +20,13 @@ public record GameSettings(Kind kind, Path file, String registryKey, AspectRatio
         /** Unreal Engine 3: *Engine.ini, секція [SystemSettings], ключі ResX/ResY. */
         UNREAL3_INI,
         /** Unity: реєстр, значення «Screenmanager Resolution Width/Height». */
-        UNITY_REGISTRY
+        UNITY_REGISTRY,
+        /** Source (Portal 2, Left 4 Dead 2): cfg\video.txt, ключі setting.defaultres / setting.defaultresheight. */
+        SOURCE_VIDEO_TXT,
+        /** Source (Half-Life 2 та старіші): реєстр HKCU\Software\Valve\Source\<мод>\Settings. */
+        SOURCE_REGISTRY,
+        /** Creation Engine / Gamebryo (Skyrim, Fallout): *Prefs.ini, секція [Display], iSize W / iSize H. */
+        CREATION_INI
     }
 
     /** Коротко для показу: ім'я файлу або розділ реєстру. */

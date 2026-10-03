@@ -151,6 +151,60 @@ class ResolutionUnlockerTest {
     }
 
     @Test
+    void sourceVideoTxtIsFoundAndUpdated() throws IOException {
+        Path game = dir.resolve("Left 4 Dead 2");
+        touch(game.resolve("bin/engine.dll"));
+        touch(game.resolve("left4dead2/gameinfo.txt"));
+        Path video = game.resolve("left4dead2/cfg/video.txt");
+        Files.createDirectories(video.getParent());
+        Files.writeString(video, String.join("\r\n",
+                "\"VideoConfig\"",
+                "{",
+                "\t\"setting.cpu_level\"\t\t\"2\"",
+                "\t\"setting.defaultres\"\t\t\"1920\"",
+                "\t\"setting.defaultresheight\"\t\t\"1080\"",
+                "}",
+                ""));
+
+        ResolutionUnlocker unlocker = new ResolutionUnlocker(dir.resolve("Local"), dir.resolve("Docs"));
+        GameSettings settings = unlocker.lookup(game, "Left 4 Dead 2").settings();
+        assertEquals(GameSettings.Kind.SOURCE_VIDEO_TXT, settings.kind());
+        assertEquals(new AspectRatio(1920, 1080), settings.current());
+
+        unlocker.apply(settings, UW);
+        String text = Files.readString(video);
+        assertTrue(text.contains("\t\"setting.defaultres\"\t\t\"3440\"\r\n\t\"setting.defaultresheight\"\t\t\"1440\""),
+                "формат рядків (табуляції, лапки) зберігся");
+        assertTrue(text.contains("\"setting.cpu_level\"\t\t\"2\""));
+    }
+
+    @Test
+    void videoTxtGetsMissingKeysBeforeClosingBrace() {
+        String out = ResolutionUnlocker.updateVideoTxt("\"VideoConfig\"\n{\n\t\"setting.fullscreen\"\t\"1\"\n}\n", UW);
+        assertTrue(out.contains("\t\"setting.defaultres\"\t\t\"3440\"\n\t\"setting.defaultresheight\"\t\t\"1440\"\n}"));
+    }
+
+    @Test
+    void creationPrefsFoundByExecutableNameAndUpdated() throws IOException {
+        // Fallout: New Vegas — налаштування в «My Games\FalloutNV», а не «Fallout New Vegas»
+        Path game = dir.resolve("Games/Fallout New Vegas");
+        touch(game.resolve("Data/FalloutNV.esm"));
+        touch(game.resolve("FalloutNV.exe"));
+        Path prefs = dir.resolve("Docs/My Games/FalloutNV/FalloutPrefs.ini");
+        Files.createDirectories(prefs.getParent());
+        Files.writeString(prefs, "[Display]\r\niSize W=1920\r\niSize H=1080\r\nbFull Screen=1\r\n[Audio]\r\nfMasterVolume=1.0\r\n");
+
+        ResolutionUnlocker unlocker = new ResolutionUnlocker(dir.resolve("Local"), dir.resolve("Docs"));
+        GameSettings settings = unlocker.lookup(game, "Fallout: New Vegas").settings();
+        assertEquals(GameSettings.Kind.CREATION_INI, settings.kind());
+        assertEquals(new AspectRatio(1920, 1080), settings.current());
+
+        unlocker.apply(settings, UW);
+        assertEquals("[Display]\r\niSize W=3440\r\niSize H=1440\r\nbFull Screen=1\r\n[Audio]\r\nfMasterVolume=1.0\r\n",
+                Files.readString(prefs));
+    }
+
+    @Test
     void unityAppInfoGivesRegistryKey() throws IOException {
         Path game = dir.resolve("Unity Game");
         Files.createDirectories(game.resolve("Adventure_Data"));

@@ -97,7 +97,147 @@ public final class ResolutionUnlocker {
         if (unity.isPresent()) {
             return new Lookup(true, unityRegistry(unity.get()[0], unity.get()[1]).orElse(null));
         }
+        List<Path> sourceMods = sourceModFolders(installDir);
+        if (!sourceMods.isEmpty()) {
+            return new Lookup(true, source(sourceMods).orElse(null));
+        }
+        if (isCreation(installDir)) {
+            List<String> names = new ArrayList<>(executableNames(installDir));
+            if (installDir.getFileName() != null) {
+                names.add(installDir.getFileName().toString());
+            }
+            if (gameName != null) {
+                names.add(gameName);
+            }
+            return new Lookup(true, creation(names).orElse(null));
+        }
         return new Lookup(false, null);
+    }
+
+    // ------------------------------------------------------------------ Source
+
+    /** Папки модів Source (hl2, portal2, left4dead2…) — у них лежить gameinfo.txt; рушій — bin\engine.dll. */
+    static List<Path> sourceModFolders(Path installDir) {
+        List<Path> mods = new ArrayList<>();
+        if (!Files.isRegularFile(installDir.resolve("bin").resolve("engine.dll"))) {
+            return mods;
+        }
+        try (DirectoryStream<Path> dirs = Files.newDirectoryStream(installDir, Files::isDirectory)) {
+            for (Path dir : dirs) {
+                if (Files.isRegularFile(dir.resolve("gameinfo.txt"))) {
+                    mods.add(dir);
+                }
+            }
+        } catch (IOException e) {
+            return mods;
+        }
+        return mods;
+    }
+
+    private static final Pattern SOURCE_WIDTH = Pattern.compile("(\"setting\\.defaultres\"\\s+\")(\\d+)(\")");
+    private static final Pattern SOURCE_HEIGHT = Pattern.compile("(\"setting\\.defaultresheight\"\\s+\")(\\d+)(\")");
+
+    private static Optional<GameSettings> source(List<Path> mods) {
+        List<Path> videoFiles = new ArrayList<>();
+        for (Path mod : mods) {
+            videoFiles.add(mod.resolve("cfg").resolve("video.txt"));
+        }
+        Optional<Path> video = newest(videoFiles);
+        if (video.isPresent()) {
+            AspectRatio current = null;
+            try {
+                String text = TextFile.read(video.get()).text();
+                current = ratio(group(SOURCE_WIDTH, text), group(SOURCE_HEIGHT, text));
+            } catch (IOException e) {
+                // покажемо лише шлях
+            }
+            return Optional.of(new GameSettings(GameSettings.Kind.SOURCE_VIDEO_TXT, video.get(), null, current));
+        }
+        for (Path mod : mods) {
+            String key = "HKCU\\Software\\Valve\\Source\\" + mod.getFileName() + "\\Settings";
+            Map<String, String> values = WindowsRegistry.readValues(key);
+            if (values.containsKey("ScreenWidth")) {
+                return Optional.of(new GameSettings(GameSettings.Kind.SOURCE_REGISTRY, null, key,
+                        ratio(values.get("ScreenWidth"), values.get("ScreenHeight"))));
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Замінює значення ключів у video.txt (формат KeyValues), а відсутні — дописує перед закривною дужкою. */
+    static String updateVideoTxt(String text, AspectRatio target) {
+        String result = text;
+        for (Pattern p : List.of(SOURCE_WIDTH, SOURCE_HEIGHT)) {
+            String value = p == SOURCE_WIDTH ? String.valueOf(target.width()) : String.valueOf(target.height());
+            Matcher m = p.matcher(result);
+            if (m.find()) {
+                result = m.replaceFirst(Matcher.quoteReplacement(m.group(1) + value + m.group(3)));
+            } else {
+                String key = p == SOURCE_WIDTH ? "setting.defaultres" : "setting.defaultresheight";
+                int close = result.lastIndexOf('}');
+                String newline = result.contains("\r\n") ? "\r\n" : "\n";
+                String line = "\t\"" + key + "\"\t\t\"" + value + "\"" + newline;
+                result = close < 0 ? result + line : result.substring(0, close) + line + result.substring(close);
+            }
+        }
+        return result;
+    }
+
+    private static String group(Pattern p, String text) {
+        Matcher m = p.matcher(text);
+        return m.find() ? m.group(2) : null;
+    }
+
+    // ------------------------------------------------------------------ Creation Engine / Gamebryo
+
+    static boolean isCreation(Path installDir) {
+        Path data = installDir.resolve("Data");
+        if (!Files.isDirectory(data)) {
+            return false;
+        }
+        try (DirectoryStream<Path> esm = Files.newDirectoryStream(data, "*.esm")) {
+            return esm.iterator().hasNext();
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** Назви .exe у корені гри без розширення: «FalloutNV», «Fallout4», «SkyrimSE». */
+    private static List<String> executableNames(Path installDir) {
+        List<String> names = new ArrayList<>();
+        try (DirectoryStream<Path> exes = Files.newDirectoryStream(installDir, "*.exe")) {
+            for (Path exe : exes) {
+                String name = exe.getFileName().toString();
+                names.add(name.substring(0, name.length() - 4));
+            }
+        } catch (IOException e) {
+            return names;
+        }
+        return names;
+    }
+
+    /** Документи\My Games\<Гра>\*.ini з секцією [Display] і ключем iSize W. */
+    private Optional<GameSettings> creation(List<String> names) {
+        List<Path> candidates = new ArrayList<>();
+        try (DirectoryStream<Path> folders = Files.newDirectoryStream(documents.resolve("My Games"), Files::isDirectory)) {
+            for (Path folder : folders) {
+                if (!nameMatches(folder.getFileName().toString(), names)) {
+                    continue;
+                }
+                try (DirectoryStream<Path> inis = Files.newDirectoryStream(folder, "*.ini")) {
+                    for (Path ini : inis) {
+                        String text = TextFile.read(ini).text();
+                        if (IniEditor.get(text, IniEditor.named("Display"), "iSize W") != null) {
+                            candidates.add(ini);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+        return newest(candidates).map(file -> new GameSettings(GameSettings.Kind.CREATION_INI, file, null,
+                readIni(file, IniEditor.named("Display"), "iSize W", "iSize H")));
     }
 
     // ------------------------------------------------------------------ Unreal Engine 4/5
@@ -303,24 +443,51 @@ public final class ResolutionUnlocker {
                     throw new IOException(I18n.t("error.settings.registry", key));
                 }
             }
+            case SOURCE_VIDEO_TXT -> {
+                Path file = settings.file();
+                backupOnce(file);
+                TextFile video = TextFile.read(file);
+                writePreservingReadOnly(file, video, updateVideoTxt(video.text(), target));
+            }
+            case SOURCE_REGISTRY -> {
+                String key = settings.registryKey();
+                if (!WindowsRegistry.setDword(key, "ScreenWidth", target.width())
+                        || !WindowsRegistry.setDword(key, "ScreenHeight", target.height())) {
+                    throw new IOException(I18n.t("error.settings.registry", key));
+                }
+            }
+            case CREATION_INI -> {
+                Map<String, String> always = new LinkedHashMap<>();
+                always.put("iSize W", w);
+                always.put("iSize H", h);
+                editIni(settings.file(), IniEditor.named("Display"), "Display", always, Map.of());
+            }
         }
     }
 
     private static void editIni(Path file, java.util.function.Predicate<String> section, String defaultSection,
                                 Map<String, String> always, Map<String, String> ifPresent) throws IOException {
+        backupOnce(file);
+        TextFile ini = TextFile.read(file);
+        writePreservingReadOnly(file, ini, IniEditor.update(ini.text(), section, defaultSection, always, ifPresent));
+    }
+
+    /** Копія оригіналу перед першою зміною (наступні зміни копію не перезаписують). */
+    private static void backupOnce(Path file) throws IOException {
         Path backup = file.resolveSibling(file.getFileName() + BACKUP_SUFFIX);
         if (!Files.exists(backup)) {
             Files.copy(file, backup, StandardCopyOption.COPY_ATTRIBUTES);
         }
-        TextFile ini = TextFile.read(file);
-        String updated = IniEditor.update(ini.text(), section, defaultSection, always, ifPresent);
-        // Деякі гравці роблять файл «лише для читання», щоб гра не скидала налаштування — зберігаємо це
+    }
+
+    /** Деякі гравці роблять файл «лише для читання», щоб гра не скидала налаштування — зберігаємо це. */
+    private static void writePreservingReadOnly(Path file, TextFile original, String newText) throws IOException {
         boolean readOnly = isReadOnly(file);
         if (readOnly) {
             Files.setAttribute(file, "dos:readonly", false);
         }
         try {
-            ini.write(file, updated);
+            original.write(file, newText);
         } finally {
             if (readOnly) {
                 Files.setAttribute(file, "dos:readonly", true);
