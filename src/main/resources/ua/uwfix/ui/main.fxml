@@ -126,7 +126,7 @@
                     <Label fx:id="engineHint" styleClass="hint" wrapText="true" minHeight="-Infinity"/>
 
                     <HBox fx:id="resolutionRow" styleClass="resolution-row" spacing="12" alignment="CENTER_LEFT">
-                        <Label text="🖥" styleClass="resolution-icon"/>
+                        <Label text="⟷" styleClass="resolution-icon"/>
                         <VBox spacing="2" HBox.hgrow="ALWAYS">
                             <Label text="%settings.title" styleClass="resolution-title"/>
                             <Label fx:id="resolutionText" styleClass="hint" wrapText="true"/>
