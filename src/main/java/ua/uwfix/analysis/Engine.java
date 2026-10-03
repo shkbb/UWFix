@@ -15,6 +15,16 @@ public enum Engine {
     UNITY_IL2CPP,
     UNITY_MONO,
     RED_ENGINE,
+    SOURCE_2,
+    SOURCE,
+    RE_ENGINE,
+    MT_FRAMEWORK,
+    RAGE,
+    CRYENGINE,
+    CREATION,
+    FROSTBITE,
+    GAMEMAKER,
+    GODOT,
     UNKNOWN;
 
     public String displayName() {

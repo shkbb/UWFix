@@ -1,5 +1,6 @@
 package ua.uwfix.settings;
 
+import ua.uwfix.analysis.EngineDetector;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.scan.WindowsRegistry;
@@ -101,18 +102,26 @@ public final class ResolutionUnlocker {
 
     // ------------------------------------------------------------------ Unreal Engine 4/5
 
-    /** «SHProto» з «SHProto-Win64-Shipping.exe». */
+    /**
+     * «SHProto» з «SHProto-Win64-Shipping.exe»; якщо .exe перейменовано —
+     * назва папки проєкту з {@code Content\Paks} («OakGame»).
+     */
     static Optional<String> unrealProjectName(Path installDir) {
         try (Stream<Path> files = Files.walk(installDir, 5)) {
-            return files
+            Optional<String> fromExe = files
                     .map(p -> p.getFileName() == null ? "" : p.getFileName().toString())
                     .map(SHIPPING_EXE::matcher)
                     .filter(Matcher::matches)
                     .map(m -> m.group(1))
                     .findFirst();
+            if (fromExe.isPresent()) {
+                return fromExe;
+            }
         } catch (IOException | RuntimeException e) {
             return Optional.empty();
         }
+        Path project = EngineDetector.unrealProjectFolder(installDir);
+        return project == null ? Optional.empty() : Optional.of(project.getFileName().toString());
     }
 
     private Optional<GameSettings> unreal(Path installDir, String project, List<String> names) {
