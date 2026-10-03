@@ -1,10 +1,13 @@
 package ua.uwfix.ui;
 
 import ua.uwfix.analysis.GameAnalyzer;
+import ua.uwfix.model.Game;
 import ua.uwfix.patch.PatchStore;
 import ua.uwfix.patch.Patcher;
 import ua.uwfix.scan.GameLibrary;
 import ua.uwfix.settings.ResolutionUnlocker;
+import ua.uwfix.settings.WinePrefix;
+import ua.uwfix.system.Os;
 import ua.uwfix.update.ReleaseInfo;
 import ua.uwfix.update.UpdateChecker;
 
@@ -86,8 +89,15 @@ public final class AppContext {
         return updateChecker;
     }
 
-    /** Створюється при першому використанні у фоні: шукає папку «Документи» через реєстр. */
-    public synchronized ResolutionUnlocker resolutionUnlocker() {
+    /**
+     * Де шукати налаштування гри. У Windows — спільний для всіх ігор (створюється при першому
+     * використанні у фоні: шукає папку «Документи» через реєстр). У Linux — префікс Wine/Proton
+     * саме цієї гри; {@code null}, якщо гра працює не через Wine або ще не запускалась.
+     */
+    public synchronized ResolutionUnlocker resolutionUnlocker(Game game) {
+        if (!Os.isWindows()) {
+            return WinePrefix.forGame(game).map(ResolutionUnlocker::forPrefix).orElse(null);
+        }
         if (resolutionUnlocker == null) {
             resolutionUnlocker = new ResolutionUnlocker();
         }

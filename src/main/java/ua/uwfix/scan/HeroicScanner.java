@@ -36,10 +36,15 @@ public final class HeroicScanner implements GameScanner {
 
     /** @param home домашня папка (для тестів — тимчасова) */
     public HeroicScanner(Path home) {
-        this.heroicConfigs = List.of(
+        this.heroicConfigs = configDirs(home);
+        this.legendaryConfigs = List.of(home.resolve(".config/legendary"));
+    }
+
+    /** Папки налаштувань Heroic: звичайна і Flatpak. */
+    public static List<Path> configDirs(Path home) {
+        return List.of(
                 home.resolve(".config/heroic"),
                 home.resolve(".var/app/com.heroicgameslauncher.hgl/config/heroic"));
-        this.legendaryConfigs = List.of(home.resolve(".config/legendary"));
     }
 
     @Override

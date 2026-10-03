@@ -4,6 +4,7 @@ import ua.uwfix.analysis.EngineDetector;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.scan.WindowsRegistry;
+import ua.uwfix.system.Os;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -12,13 +13,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -34,6 +38,9 @@ import java.util.stream.Stream;
  *   <li><b>Unity</b>: реєстр {@code HKCU\Software\<компанія>\<гра>}, назви з файлу {@code <Гра>_Data\app.info}.</li>
  * </ul>
  * Налаштування з'являються після першого запуску гри — до того змінювати нічого.
+ * <p>
+ * На Linux ігри працюють через Wine/Proton, тож ті самі папки й реєстр шукаються всередині
+ * префікса гри ({@link #forPrefix(WinePrefix)}).
  */
 public final class ResolutionUnlocker {
 
@@ -53,17 +60,28 @@ public final class ResolutionUnlocker {
 
     private final Path localAppData;
     private final Path documents;
+    private final RegistryAccess registry;
 
     public ResolutionUnlocker() {
         this(Path.of(System.getenv().getOrDefault("LOCALAPPDATA",
                         System.getProperty("user.home") + "\\AppData\\Local")),
-                documentsFolder());
+                documentsFolder(), RegistryAccess.WINDOWS);
     }
 
     /** Для тестів: власні папки замість справжніх. */
     public ResolutionUnlocker(Path localAppData, Path documents) {
+        this(localAppData, documents, RegistryAccess.WINDOWS);
+    }
+
+    public ResolutionUnlocker(Path localAppData, Path documents, RegistryAccess registry) {
         this.localAppData = localAppData;
         this.documents = documents;
+        this.registry = registry;
+    }
+
+    /** Налаштування гри, що працює в префіксі Wine/Proton. */
+    public static ResolutionUnlocker forPrefix(WinePrefix prefix) {
+        return new ResolutionUnlocker(prefix.localAppData(), prefix.documents(), new WineRegistry(prefix.userReg()));
     }
 
     public Lookup lookup(Path installDir) {
@@ -137,7 +155,7 @@ public final class ResolutionUnlocker {
     private static final Pattern SOURCE_WIDTH = Pattern.compile("(\"setting\\.defaultres\"\\s+\")(\\d+)(\")");
     private static final Pattern SOURCE_HEIGHT = Pattern.compile("(\"setting\\.defaultresheight\"\\s+\")(\\d+)(\")");
 
-    private static Optional<GameSettings> source(List<Path> mods) {
+    private Optional<GameSettings> source(List<Path> mods) {
         List<Path> videoFiles = new ArrayList<>();
         for (Path mod : mods) {
             videoFiles.add(mod.resolve("cfg").resolve("video.txt"));
@@ -155,7 +173,7 @@ public final class ResolutionUnlocker {
         }
         for (Path mod : mods) {
             String key = "HKCU\\Software\\Valve\\Source\\" + mod.getFileName() + "\\Settings";
-            Map<String, String> values = WindowsRegistry.readValues(key);
+            Map<String, String> values = registry.readValues(key);
             if (values.containsKey("ScreenWidth")) {
                 return Optional.of(new GameSettings(GameSettings.Kind.SOURCE_REGISTRY, null, key,
                         ratio(values.get("ScreenWidth"), values.get("ScreenHeight"))));
@@ -392,9 +410,9 @@ public final class ResolutionUnlocker {
         return "HKCU\\Software\\" + company + "\\" + product;
     }
 
-    private static Optional<GameSettings> unityRegistry(String company, String product) {
+    private Optional<GameSettings> unityRegistry(String company, String product) {
         String key = unityRegistryKey(company, product);
-        Map<String, String> values = WindowsRegistry.readValues(key);
+        Map<String, String> values = registry.readValues(key);
         if (values.isEmpty()) {
             return Optional.empty(); // гру ще не запускали
         }
@@ -432,12 +450,12 @@ public final class ResolutionUnlocker {
             }
             case UNITY_REGISTRY -> {
                 String key = settings.registryKey();
-                boolean ok = WindowsRegistry.setDword(key, UnityPrefs.valueName(UnityPrefs.WIDTH), target.width())
-                        && WindowsRegistry.setDword(key, UnityPrefs.valueName(UnityPrefs.HEIGHT), target.height());
+                boolean ok = registry.setDword(key, UnityPrefs.valueName(UnityPrefs.WIDTH), target.width())
+                        && registry.setDword(key, UnityPrefs.valueName(UnityPrefs.HEIGHT), target.height());
                 // «Use Native» = 1 змушує гру брати роздільну здатність робочого столу замість записаної
                 String useNative = UnityPrefs.valueName(UnityPrefs.USE_NATIVE);
-                if (ok && WindowsRegistry.readValues(key).containsKey(useNative)) {
-                    ok = WindowsRegistry.setDword(key, useNative, 0);
+                if (ok && registry.readValues(key).containsKey(useNative)) {
+                    ok = registry.setDword(key, useNative, 0);
                 }
                 if (!ok) {
                     throw new IOException(I18n.t("error.settings.registry", key));
@@ -451,8 +469,8 @@ public final class ResolutionUnlocker {
             }
             case SOURCE_REGISTRY -> {
                 String key = settings.registryKey();
-                if (!WindowsRegistry.setDword(key, "ScreenWidth", target.width())
-                        || !WindowsRegistry.setDword(key, "ScreenHeight", target.height())) {
+                if (!registry.setDword(key, "ScreenWidth", target.width())
+                        || !registry.setDword(key, "ScreenHeight", target.height())) {
                     throw new IOException(I18n.t("error.settings.registry", key));
                 }
             }
@@ -482,6 +500,10 @@ public final class ResolutionUnlocker {
 
     /** Деякі гравці роблять файл «лише для читання», щоб гра не скидала налаштування — зберігаємо це. */
     private static void writePreservingReadOnly(Path file, TextFile original, String newText) throws IOException {
+        if (!Os.isWindows()) {
+            writePreservingPosixMode(file, original, newText);
+            return;
+        }
         boolean readOnly = isReadOnly(file);
         if (readOnly) {
             Files.setAttribute(file, "dos:readonly", false);
@@ -491,6 +513,30 @@ public final class ResolutionUnlocker {
         } finally {
             if (readOnly) {
                 Files.setAttribute(file, "dos:readonly", true);
+            }
+        }
+    }
+
+    /** Linux: «лише для читання» — це відсутнє право запису для власника. */
+    private static void writePreservingPosixMode(Path file, TextFile original, String newText) throws IOException {
+        Set<PosixFilePermission> mode;
+        try {
+            mode = Files.getPosixFilePermissions(file);
+        } catch (UnsupportedOperationException e) {
+            original.write(file, newText);
+            return;
+        }
+        boolean locked = !mode.contains(PosixFilePermission.OWNER_WRITE);
+        if (locked) {
+            Set<PosixFilePermission> writable = new HashSet<>(mode);
+            writable.add(PosixFilePermission.OWNER_WRITE);
+            Files.setPosixFilePermissions(file, writable);
+        }
+        try {
+            original.write(file, newText);
+        } finally {
+            if (locked) {
+                Files.setPosixFilePermissions(file, mode);
             }
         }
     }

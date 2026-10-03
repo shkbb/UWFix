@@ -987,8 +987,12 @@ public final class MainController {
     // ================================================================== роздільна здатність у налаштуваннях гри
 
     private void lookupSettings(Game game) {
-        Task<ResolutionUnlocker.Lookup> task = backgroundTask(
-                listener -> context.resolutionUnlocker().lookup(game.installDir(), game.name()));
+        Task<ResolutionUnlocker.Lookup> task = backgroundTask(listener -> {
+            ResolutionUnlocker unlocker = context.resolutionUnlocker(game);
+            return unlocker == null
+                    ? new ResolutionUnlocker.Lookup(false, null)
+                    : unlocker.lookup(game.installDir(), game.name());
+        });
         task.setOnSucceeded(e -> {
             if (game.equals(currentGame)) {
                 settingsLookup = task.getValue();
@@ -1031,7 +1035,11 @@ public final class MainController {
             return;
         }
         runBusy(listener -> {
-            context.resolutionUnlocker().apply(settings, target);
+            ResolutionUnlocker unlocker = context.resolutionUnlocker(game);
+            if (unlocker == null) {
+                throw new IOException(I18n.t("settings.notFound"));
+            }
+            unlocker.apply(settings, target);
             return settings;
         }, applied -> {
             log(I18n.t("log.settingsApplied", target.resolutionText(),
