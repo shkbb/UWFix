@@ -47,7 +47,8 @@ public final class AntiCheatDetector {
         if (lowerName.startsWith("easyanticheat") || lowerName.equals("start_protected_game.exe")) {
             return "Easy Anti-Cheat";
         }
-        if (lowerName.equals("battleye") || lowerName.startsWith("beservice") || lowerName.startsWith("bedaisy")) {
+        if (lowerName.equals("battleye") || lowerName.startsWith("beservice") || lowerName.startsWith("bedaisy")
+                || lowerName.startsWith("libbeclient")) {
             return "BattlEye";
         }
         if (lowerName.startsWith("eaanticheat")) {

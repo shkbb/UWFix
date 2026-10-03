@@ -18,7 +18,9 @@ import java.util.stream.Stream;
  *   <li>Steam-ігри: Steam сам зберігає іконку кожної гри у
  *       {@code Steam\appcache\librarycache\<AppID>\<40 hex-символів>.jpg}
  *       (у старих версіях Steam — {@code <AppID>_icon.jpg});</li>
- *   <li>решта ігор: іконка з головного .exe (див. {@link PeIconExtractor}).</li>
+ *   <li>решта ігор: іконка з головного .exe (див. {@link PeIconExtractor});</li>
+ *   <li>нативні ігри Linux: у файлах ELF іконок немає, тож беремо картинку, яку гра кладе поруч
+ *       ({@link #nativeIcon(Path)}).</li>
  * </ol>
  */
 public final class GameIconLocator {
@@ -124,6 +126,30 @@ public final class GameIconLocator {
         } catch (IOException | RuntimeException e) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * Іконка нативної гри Linux:
+     * <ul>
+     *   <li>{@code Гра_Data/Resources/UnityPlayer.png} — іконка вікна ігор Unity;</li>
+     *   <li>{@code support/icon.png} — так встановлює ігри GOG.</li>
+     * </ul>
+     */
+    public static Optional<Path> nativeIcon(Path installDir) {
+        try (Stream<Path> dirs = Files.list(installDir)) {
+            Optional<Path> unity = dirs
+                    .filter(p -> p.getFileName().toString().endsWith("_Data"))
+                    .map(p -> p.resolve("Resources").resolve("UnityPlayer.png"))
+                    .filter(Files::isRegularFile)
+                    .findFirst();
+            if (unity.isPresent()) {
+                return unity;
+            }
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+        Path gog = installDir.resolve("support").resolve("icon.png");
+        return Files.isRegularFile(gog) ? Optional.of(gog) : Optional.empty();
     }
 
     private static long size(Path p) {

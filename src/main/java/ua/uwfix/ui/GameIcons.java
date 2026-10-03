@@ -78,6 +78,13 @@ final class GameIcons {
                         .map(GameIcons::toImage)
                         .orElse(null);
             }
+            if (image == null) {
+                Optional<Path> png = GameIconLocator.nativeIcon(game.installDir());
+                if (png.isPresent()) {
+                    Image icon = new Image(png.get().toUri().toString());
+                    image = icon.isError() ? null : icon;
+                }
+            }
         } catch (RuntimeException e) {
             image = null; // без іконки — покажемо літеру
         }

@@ -2,6 +2,8 @@ package ua.uwfix.patch;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import ua.uwfix.model.AspectRatio;
 import ua.uwfix.model.ValueFormat;
@@ -17,6 +19,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Random;
@@ -81,6 +85,19 @@ class PatcherTest {
         assertFalse(Files.exists(Patcher.backupPath(exe)));
         assertTrue(store.find(exe).isEmpty());
         assertEquals(FileState.ORIGINAL, patcher.quickState(exe));
+    }
+
+    /** Linux: програма гри має лишитися виконуваною і після заміни, і після відновлення. */
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void executableBitSurvivesPatchAndRestore() throws Exception {
+        Set<PosixFilePermission> mode = PosixFilePermissions.fromString("rwxr-xr-x");
+        Files.setPosixFilePermissions(exe, mode);
+
+        apply(UW_3440, FLOAT_ONLY);
+        assertEquals(mode, Files.getPosixFilePermissions(exe));
+        patcher.restore(exe, ProgressListener.NONE);
+        assertEquals(mode, Files.getPosixFilePermissions(exe));
     }
 
     @Test

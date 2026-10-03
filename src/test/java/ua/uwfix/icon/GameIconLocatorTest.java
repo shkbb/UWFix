@@ -83,6 +83,15 @@ class GameIconLocatorTest {
         assertEquals(Optional.of(shipping), GameIconLocator.mainExecutable(dir));
     }
 
+    @Test
+    void nativeLinuxIconsFromUnityAndGog() throws IOException {
+        assertEquals(Optional.empty(), GameIconLocator.nativeIcon(dir));
+        Path gog = write("support/icon.png", 100);
+        assertEquals(Optional.of(gog), GameIconLocator.nativeIcon(dir));
+        Path unity = write("Valheim_Data/Resources/UnityPlayer.png", 100);
+        assertEquals(Optional.of(unity), GameIconLocator.nativeIcon(dir), "іконка Unity точніша");
+    }
+
     private Game steam(String appId) {
         return new Game(GameSource.STEAM, appId, "Game", dir);
     }

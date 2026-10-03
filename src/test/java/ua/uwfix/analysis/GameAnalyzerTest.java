@@ -92,6 +92,14 @@ class GameAnalyzerTest {
     }
 
     @Test
+    void antiCheatNamesOnWindowsAndLinux() {
+        assertEquals("Easy Anti-Cheat", AntiCheatDetector.classify("easyanticheat_x64.so"));
+        assertEquals("BattlEye", AntiCheatDetector.classify("libbeclient_x64.so"));
+        assertEquals("BattlEye", AntiCheatDetector.classify("beservice_x64.exe"));
+        assertEquals(null, AntiCheatDetector.classify("libsteam_api.so"));
+    }
+
+    @Test
     void trackedFileIsShownEvenWithoutMatches() throws IOException {
         Path patched = binary("Game.exe", 300_000, 0);
         GameAnalysis analysis = new GameAnalyzer().analyze(game(), Set.of(patched), ProgressListener.NONE);

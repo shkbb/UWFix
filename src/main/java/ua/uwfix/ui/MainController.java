@@ -67,6 +67,7 @@ import ua.uwfix.system.Autostart;
 import ua.uwfix.system.Displays;
 import ua.uwfix.system.SystemShell;
 import ua.uwfix.system.GameLauncher;
+import ua.uwfix.system.Os;
 import ua.uwfix.system.WindowsShell;
 import ua.uwfix.update.ReleaseInfo;
 import ua.uwfix.update.UpdateException;
@@ -745,10 +746,15 @@ public final class MainController {
         placeholder.setVisible(false);
         detailsPane.setVisible(true);
         gameTitle.setText(game.name());
-        playButton.setVisible(GameLauncher.canLaunch(game));
+        // У Linux, щоб дізнатися, чи є нативна версія, треба переглянути файли — це у фоні
+        boolean launchKnown = GameLauncher.usesLauncher(game) || Os.isWindows();
+        playButton.setVisible(launchKnown);
+        if (!launchKnown) {
+            checkLaunchableAsync(game);
+        }
         playButton.setTooltip(new Tooltip(GameLauncher.usesLauncher(game)
                 ? I18n.t("action.play.launcher", game.source().displayName())
-                : I18n.t("action.play.exe")));
+                : I18n.t("action.play.direct")));
         updateDetailsIcon();
         gamePath.setText(game.installDir().toString());
         chips.getChildren().setAll(chip(game.source().displayName(), "chip"));
@@ -1230,6 +1236,24 @@ public final class MainController {
         // посеред обробки події самого списку
         String gameId = currentGame != null ? currentGame.id() : null;
         Platform.runLater(() -> reloadUi.accept(gameId));
+    }
+
+    /** Linux: чи можна запустити гру напряму (чи є нативна версія). */
+    private void checkLaunchableAsync(Game game) {
+        Task<Boolean> task = new Task<>() {
+            @Override
+            protected Boolean call() {
+                return GameLauncher.canLaunch(game);
+            }
+        };
+        task.setOnSucceeded(e -> {
+            if (game.equals(currentGame)) {
+                playButton.setVisible(task.getValue());
+            }
+        });
+        Thread t = new Thread(task, "uwfix-launch-check");
+        t.setDaemon(true);
+        t.start();
     }
 
     /** Права адміністратора та стан автозапуску перевіряються у фоні — це виклики системних утиліт. */
