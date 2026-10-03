@@ -34,19 +34,37 @@ not taken from a fixed table.
 - **Game icons and cover art**: Steam games get their icon, background art and logo from Steam's local cache, other games — an icon straight from the game's .exe (the app parses the Windows PE resource table itself).
 - **Search, filters and sorting**: search ignores case and punctuation; show all / fixed / not fixed / updated games; sort by name (Ukrainian alphabet aware), launcher or fixed first.
 - **Monitor detection**: every connected monitor is detected automatically, taking Windows scaling into account; you can pick another resolution or enter your own.
-- **Game analysis**: finds .exe and .dll files containing 16:9, skips third-party libraries (Steam API, DirectX, PhysX…), detects the engine (Unreal Engine 3/4/5, Unity, REDengine) and suggests which files to patch.
+- **Game analysis**: finds .exe and .dll files containing 16:9, skips third-party libraries (Steam API, DirectX, PhysX…), detects the engine (15 engines — see the table below) and suggests which files to patch.
 - **Safe patching**:
   - a backup `*.uwfix-backup` is created before any change;
   - only the 4 (or 8) bytes found are changed, the rest of the file is not rewritten;
   - before each write the expected bytes are verified;
   - SHA-256 checksums of the original and the result are stored.
-- **Resolution unlock**: for games that don't offer 3440×1440 in their menu, UWFix writes it straight into the game settings — `GameUserSettings.ini` (Unreal Engine 4/5), `*Engine.ini` (Unreal Engine 3, e.g. Life is Strange) or the registry (Unity).
+- **Resolution unlock**: for games that don't offer 3440×1440 in their menu, UWFix writes it straight into the game settings — `GameUserSettings.ini` (Unreal Engine 4/5), `*Engine.ini` (Unreal Engine 3, e.g. Life is Strange), the registry (Unity), `video.txt` (Source) or `*Prefs.ini` (Skyrim, Fallout).
 - **Play button**: launches the game via Steam / Epic / Ubisoft Connect (achievements and cloud saves keep working) or directly via its .exe.
 - **One-click restore** — even without the backup, because UWFix knows every changed location.
 - **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at Windows sign-in.
 - **Anti-cheat warning** (Easy Anti-Cheat, BattlEye, VAC…): modifying online games is risky for your account.
 - **Languages**: English and Ukrainian, switchable on the fly.
 - **Self-update**: at startup UWFix checks GitHub for a new version; one click downloads it, verifies the SHA-256 checksum and restarts into the new version — no need to download it manually again.
+
+## Supported engines
+
+| Engine | Examples | Detected by | Resolution in game settings |
+|--------|----------|-------------|-----------------------------|
+| Unreal Engine 4/5 | Silent Hill 2, Stellar Blade, Palworld | `*-Win64-Shipping.exe`, `Content\Paks` | `GameUserSettings.ini` |
+| Unreal Engine 3 | Life is Strange, BioShock Infinite | `CookedPC*` | `*Engine.ini` → `[SystemSettings]` |
+| Unity | Valheim, Content Warning | `UnityPlayer.dll` | registry (PlayerPrefs) |
+| Source | Half-Life 2, Portal 2, Left 4 Dead 2 | `bin\engine.dll` | `cfg\video.txt` or registry |
+| Creation Engine / Gamebryo | Skyrim, Fallout 3/4/New Vegas | `Data\*.esm` | `*Prefs.ini` → `iSize W/H` |
+| REDengine | The Witcher 3, Cyberpunk 2077 | `bin\x64` + `content` | — |
+| RE Engine | Resident Evil 2/3/4/7/Village, Monster Hunter | `re_chunk_000.pak` | — (hint: REFramework) |
+| MT Framework | Resident Evil 5/6, Revelations | `nativePC*` | — |
+| Source 2 | Counter-Strike 2, Dota 2 | `game\bin\win64\engine2.dll` | — (native 21:9, VAC) |
+| RAGE | GTA V, Red Dead Redemption 2 | `*.rpf` | — (native 21:9) |
+| CryEngine, Frostbite, GameMaker, Godot | | `CrySystem.dll`, `initfs_Win32`, `data.win`, `*.pck` | — |
+
+For every engine UWFix shows an honest hint: where the 16:9 replacement helps, where the game supports 21:9 by itself and where files are better left alone (online games with anti-cheat).
 
 ## Limitations
 
@@ -139,7 +157,7 @@ flowchart LR
 
 ## Testing
 
-157 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
+178 unit tests (JUnit 5): ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
 translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask).
