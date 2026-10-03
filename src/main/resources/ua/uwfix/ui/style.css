@@ -338,6 +338,35 @@
     -fx-font-size: 12px;
 }
 
+/* ---------- Шапка гри з обкладинкою ---------- */
+
+/* Фон шапки ставиться з коду (обкладинка гри), тому тут лише відступи — без -fx-background-*,
+   інакше CSS перекрив би зображення. Кути заокруглює обрізка (clip). */
+.hero-art {
+    -fx-min-height: 210;
+}
+
+/* Відступ — лише вмісту, щоб затемнення лягало на всю шапку */
+.hero-art .hero-content {
+    -fx-padding: 26 22 18 22;
+}
+
+/* Затемнення зліва і знизу, щоб текст і кнопки читалися на будь-якій обкладинці */
+.hero-shade {
+    -fx-background-color:
+        linear-gradient(to right, rgba(18, 20, 25, 0.92) 0%, rgba(18, 20, 25, 0.55) 55%, rgba(18, 20, 25, 0.15) 100%),
+        linear-gradient(to bottom, transparent 35%, rgba(18, 20, 25, 0.85) 100%);
+    -fx-background-radius: 14;
+}
+
+.hero-art .chip {
+    -fx-background-color: rgba(18, 20, 25, 0.72);
+}
+
+.hero-art .path-link {
+    -fx-text-fill: #b9c0cc;
+}
+
 /* ---------- Роздільна здатність у налаштуваннях гри ---------- */
 
 .resolution-row {

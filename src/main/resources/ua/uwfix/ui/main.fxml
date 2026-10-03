@@ -96,16 +96,24 @@
                 </VBox>
 
                 <VBox fx:id="detailsPane" spacing="12" visible="false">
-                    <HBox spacing="14" alignment="CENTER_LEFT">
-                        <StackPane fx:id="gameIconBox" minWidth="48" minHeight="48" maxWidth="48" maxHeight="48"/>
-                        <VBox spacing="2" HBox.hgrow="ALWAYS">
-                            <Label fx:id="gameTitle" styleClass="game-title" wrapText="true"/>
-                            <Hyperlink fx:id="gamePath" onAction="#onOpenFolder" styleClass="path-link"/>
+                    <!-- Шапка гри: на тлі — обкладинка зі Steam (якщо є) із затемненням -->
+                    <StackPane fx:id="heroPane" styleClass="hero">
+                        <Region fx:id="heroShade" styleClass="hero-shade" visible="false"/>
+                        <VBox spacing="10" StackPane.alignment="BOTTOM_LEFT" styleClass="hero-content">
+                            <HBox spacing="14" alignment="CENTER_LEFT">
+                                <StackPane fx:id="gameIconBox" minWidth="48" minHeight="48" maxWidth="48" maxHeight="48"/>
+                                <VBox spacing="2" HBox.hgrow="ALWAYS">
+                                    <ImageView fx:id="gameLogo" fitWidth="420" fitHeight="76" preserveRatio="true"
+                                               smooth="true" visible="false"/>
+                                    <Label fx:id="gameTitle" styleClass="game-title" wrapText="true"/>
+                                    <Hyperlink fx:id="gamePath" onAction="#onOpenFolder" styleClass="path-link"/>
+                                </VBox>
+                                <Button fx:id="playButton" text="%action.play" onAction="#onPlay" minWidth="-Infinity"
+                                        styleClass="play-button, big-button"/>
+                            </HBox>
+                            <FlowPane fx:id="chips" hgap="8" vgap="6"/>
                         </VBox>
-                        <Button fx:id="playButton" text="%action.play" onAction="#onPlay" minWidth="-Infinity"
-                                styleClass="play-button, big-button"/>
-                    </HBox>
-                    <FlowPane fx:id="chips" hgap="8" vgap="6"/>
+                    </StackPane>
 
                     <HBox fx:id="statusCard" styleClass="status-card, status-idle" spacing="14" alignment="CENTER_LEFT">
                         <Label fx:id="statusIcon" styleClass="status-icon" minWidth="44" alignment="CENTER"/>
@@ -115,7 +123,7 @@
                         </VBox>
                     </HBox>
 
-                    <Label fx:id="engineHint" styleClass="hint" wrapText="true"/>
+                    <Label fx:id="engineHint" styleClass="hint" wrapText="true" minHeight="-Infinity"/>
 
                     <HBox fx:id="resolutionRow" styleClass="resolution-row" spacing="12" alignment="CENTER_LEFT">
                         <Label text="🖥" styleClass="resolution-icon"/>

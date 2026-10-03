@@ -29,7 +29,17 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.FlowPane;
+import javafx.geometry.Side;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundImage;
+import javafx.scene.layout.BackgroundPosition;
+import javafx.scene.layout.BackgroundRepeat;
+import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -126,6 +136,9 @@ public final class MainController {
     @FXML private Label placeholderText;
     // ---- деталі гри
     @FXML private VBox detailsPane;
+    @FXML private StackPane heroPane;
+    @FXML private Region heroShade;
+    @FXML private ImageView gameLogo;
     @FXML private StackPane gameIconBox;
     @FXML private Label gameTitle;
     @FXML private Hyperlink gamePath;
@@ -227,6 +240,14 @@ public final class MainController {
         updateNotesLink.managedProperty().bind(updateNotesLink.visibleProperty());
         updateBanner.setVisible(false);
         resolutionRow.managedProperty().bind(resolutionRow.visibleProperty());
+        gameLogo.managedProperty().bind(gameLogo.visibleProperty());
+        gameTitle.managedProperty().bind(gameTitle.visibleProperty());
+        Rectangle heroClip = new Rectangle();
+        heroClip.setArcWidth(28);
+        heroClip.setArcHeight(28);
+        heroClip.widthProperty().bind(heroPane.widthProperty());
+        heroClip.heightProperty().bind(heroPane.heightProperty());
+        heroPane.setClip(heroClip);
         resolutionRow.setVisible(false);
         resolutionButton.setTooltip(new Tooltip(I18n.t("settings.tooltip")));
         progressBox.setVisible(false);
@@ -1253,6 +1274,33 @@ public final class MainController {
             gameIconBox.getChildren().setAll(
                     GameCell.iconNode(context.icons().get(currentGame), currentGame.name(), 48));
         }
+        updateHero();
+    }
+
+    /**
+     * Шапка гри: обкладинка зі Steam на тлі (масштаб «cover» — заповнює всю шапку без розтягування)
+     * і логотип гри замість текстової назви. Для ігор без обкладинки шапка звичайна.
+     */
+    private void updateHero() {
+        GameIcons.Art art = currentGame == null ? null : context.icons().art(currentGame);
+        Image hero = art == null ? null : art.hero();
+        if (hero != null) {
+            heroPane.setBackground(new Background(new BackgroundImage(hero,
+                    BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
+                    new BackgroundPosition(Side.LEFT, 0.5, true, Side.TOP, 0.35, true),
+                    new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, false, true))));
+            if (!heroPane.getStyleClass().contains("hero-art")) {
+                heroPane.getStyleClass().add("hero-art");
+            }
+        } else {
+            heroPane.setBackground(null);
+            heroPane.getStyleClass().remove("hero-art");
+        }
+        heroShade.setVisible(hero != null);
+        Image logo = art == null ? null : art.logo();
+        gameLogo.setImage(logo);
+        gameLogo.setVisible(logo != null && hero != null); // логотип розрахований на темне тло обкладинки
+        gameTitle.setVisible(!gameLogo.isVisible());
     }
 
     private static Label chip(String text, String styleClass) {

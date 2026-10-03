@@ -31,6 +31,33 @@ class GameIconLocatorTest {
     }
 
     @Test
+    void findsSteamCoverArtPreferringNonLocalizedFiles() throws IOException {
+        Path cache = Files.createDirectories(dir.resolve("Steam/appcache/librarycache/1091500"));
+        Path heroDir = Files.createDirectories(cache.resolve("cf8cec802dc47d0f24b75f9eee135e96812e2652"));
+        Path hero = heroDir.resolve("library_hero.jpg");
+        Files.write(hero, new byte[]{1});
+        Files.write(heroDir.resolve("library_hero_blur.jpg"), new byte[]{2});       // розмите — не беремо
+        Path logoDir = Files.createDirectories(cache.resolve("37680a273aeee84646db37ed0423aafee948d845"));
+        Files.write(logoDir.resolve("logo_ukrainian.png"), new byte[]{3});
+        Path logo = logoDir.resolve("logo.png");
+        Files.write(logo, new byte[]{4});
+
+        GameIconLocator.SteamArt art = new GameIconLocator(dir.resolve("Steam")).steamArt(steam("1091500")).orElseThrow();
+        assertEquals(hero, art.hero());
+        assertEquals(logo, art.logo(), "варіант без мови в пріоритеті");
+    }
+
+    @Test
+    void localizedCoverArtIsUsedWhenItIsTheOnlyOne() throws IOException {
+        Path cache = Files.createDirectories(dir.resolve("Steam/appcache/librarycache/292030/2dbca486"));
+        Path hero = cache.resolve("library_hero_ukrainian.jpg");
+        Files.write(hero, new byte[]{1});
+        GameIconLocator.SteamArt art = new GameIconLocator(dir.resolve("Steam")).steamArt(steam("292030")).orElseThrow();
+        assertEquals(hero, art.hero());
+        assertEquals(null, art.logo());
+    }
+
+    @Test
     void findsSteamIconInLegacyLayout() throws IOException {
         Path cache = Files.createDirectories(dir.resolve("Steam/appcache/librarycache"));
         Path icon = cache.resolve("570_icon.jpg");

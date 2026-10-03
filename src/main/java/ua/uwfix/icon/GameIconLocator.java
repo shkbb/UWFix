@@ -54,6 +54,58 @@ public final class GameIconLocator {
     }
 
     /**
+     * Обкладинка гри зі Steam.
+     *
+     * @param hero широке фонове зображення (library_hero) або {@code null}
+     * @param logo логотип з прозорим тлом (logo.png) або {@code null}
+     */
+    public record SteamArt(Path hero, Path logo) {
+    }
+
+    /**
+     * Обкладинка з кешу Steam: {@code librarycache\<AppID>\<hash>\library_hero.jpg} і {@code logo.png}
+     * (бувають локалізовані варіанти: library_hero_ukrainian.jpg). Розмите library_hero_blur не беремо.
+     */
+    public Optional<SteamArt> steamArt(Game game) {
+        if (game.source() != GameSource.STEAM || libraryCache == null) {
+            return Optional.empty();
+        }
+        Path dir = libraryCache.resolve(game.sourceId());
+        Path hero = findArt(dir, "library_hero", "jpg");
+        Path logo = findArt(dir, "logo", "png");
+        if (hero == null) {
+            Path legacy = libraryCache.resolve(game.sourceId() + "_library_hero.jpg");
+            hero = Files.isRegularFile(legacy) ? legacy : null;
+        }
+        if (logo == null) {
+            Path legacy = libraryCache.resolve(game.sourceId() + "_logo.png");
+            logo = Files.isRegularFile(legacy) ? legacy : null;
+        }
+        return hero == null && logo == null ? Optional.empty() : Optional.of(new SteamArt(hero, logo));
+    }
+
+    /** Файл «назва.розширення» або «назва_мова.розширення»; варіант без мови — у пріоритеті. */
+    private static Path findArt(Path dir, String baseName, String extension) {
+        if (!Files.isDirectory(dir)) {
+            return null;
+        }
+        String exact = baseName + "." + extension;
+        String pattern = baseName + "(_[a-z]+)?\\." + extension;
+        try (Stream<Path> files = Files.walk(dir, 2)) {
+            return files
+                    .filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String name = p.getFileName().toString().toLowerCase(Locale.ROOT);
+                        return name.matches(pattern) && !name.contains("blur");
+                    })
+                    .min(Comparator.comparingInt(p -> p.getFileName().toString().equalsIgnoreCase(exact) ? 0 : 1))
+                    .orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /**
      * Головний .exe гри — найбільший виконуваний файл, що не є допоміжною програмою
      * (лаунчером, звітом про збої тощо). Саме в ньому зазвичай лежить іконка гри.
      */
