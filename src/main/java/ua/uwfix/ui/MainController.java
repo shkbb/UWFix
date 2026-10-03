@@ -413,12 +413,13 @@ public final class MainController {
 
     private void fillRatioCombo(List<AspectRatio> monitors) {
         List<RatioOption> items = new ArrayList<>();
-        Set<AspectRatio> seen = new HashSet<>();
+        // Монітори з однаковою роздільною здатністю — один пункт «Монітори 2, 3», щоб не було дублікатів
+        Map<AspectRatio, List<Integer>> numbersByRatio = new LinkedHashMap<>();
         for (int i = 0; i < monitors.size(); i++) {
-            if (seen.add(monitors.get(i))) {
-                items.add(RatioOption.monitor(i + 1, monitors.get(i)));
-            }
+            numbersByRatio.computeIfAbsent(monitors.get(i), r -> new ArrayList<>()).add(i + 1);
         }
+        numbersByRatio.forEach((ratio, numbers) -> items.add(RatioOption.monitors(numbers, ratio)));
+        Set<AspectRatio> seen = new HashSet<>(numbersByRatio.keySet());
         for (AspectRatio preset : AspectRatio.PRESETS) {
             if (seen.add(preset)) {
                 items.add(RatioOption.preset(preset));

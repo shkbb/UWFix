@@ -3,6 +3,9 @@ package ua.uwfix.ui;
 import ua.uwfix.i18n.I18n;
 import ua.uwfix.model.AspectRatio;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * Пункт списку «Цільова роздільна здатність».
  *
@@ -12,8 +15,11 @@ import ua.uwfix.model.AspectRatio;
  */
 public record RatioOption(String label, AspectRatio ratio, boolean custom) {
 
-    static RatioOption monitor(int index, AspectRatio ratio) {
-        return new RatioOption(I18n.t("ratio.monitor", String.valueOf(index), ratio.toString()), ratio, false);
+    /** «Монітор 1 · 3440×1440» або, для кількох однакових моніторів, «Монітори 2, 3 · 1920×1080». */
+    static RatioOption monitors(List<Integer> numbers, AspectRatio ratio) {
+        String list = numbers.stream().map(String::valueOf).collect(Collectors.joining(", "));
+        String key = numbers.size() == 1 ? "ratio.monitor" : "ratio.monitors";
+        return new RatioOption(I18n.t(key, list, ratio.toString()), ratio, false);
     }
 
     static RatioOption preset(AspectRatio ratio) {
