@@ -118,6 +118,18 @@
     -fx-padding: 4 12 4 12;
 }
 
+/* Векторні значки (див. Icons.java) */
+.icon-stroke {
+    -fx-fill: transparent;
+    -fx-stroke: -uw-text;
+    -fx-stroke-width: 2.2;
+    -fx-stroke-line-cap: round;
+}
+
+.icon-fill {
+    -fx-fill: -uw-text;
+}
+
 .icon-button:hover {
     -fx-background-color: derive(-uw-surface-2, 12%);
 }

@@ -132,6 +132,9 @@ class LauncherScannersTest {
     void nonGameDetection() {
         assertTrue(SteamScanner.isNonGame("228980", "Steamworks Common Redistributables"));
         assertTrue(SteamScanner.isNonGame("1493710", "Proton Experimental"));
+        assertTrue(SteamScanner.isNonGame("2805730", "Proton 9.0 (Beta)"));
+        assertTrue(SteamScanner.isNonGame("1826330", "Proton EasyAntiCheat Runtime"));
+        assertEquals(false, SteamScanner.isNonGame("4343", "Proton Quest"), "гра, що починається з «Proton»");
         assertEquals(false, SteamScanner.isNonGame("292030", "The Witcher 3"));
         assertNull(EpicScanner.readItem(dir.resolve("missing.item")));
     }

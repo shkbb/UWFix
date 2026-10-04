@@ -64,7 +64,7 @@
             <HBox spacing="8">
                 <Button fx:id="addGameButton" text="%sidebar.add" onAction="#onAddGame"
                         HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="secondary-button"/>
-                <Button fx:id="refreshButton" text="⟳" onAction="#onRefresh" styleClass="icon-button"/>
+                <Button fx:id="refreshButton" onAction="#onRefresh" styleClass="icon-button"/>
             </HBox>
         </VBox>
     </left>
@@ -81,7 +81,7 @@
                 <Button fx:id="updateButton" text="%update.install" onAction="#onUpdate" styleClass="accent-button"/>
             </HBox>
             <HBox fx:id="outdatedBanner" styleClass="banner" alignment="CENTER_LEFT" spacing="12" visible="false">
-                <Label text="⟳" styleClass="banner-icon"/>
+                <Label text="⬆" styleClass="banner-icon"/>
                 <Label fx:id="outdatedLabel" styleClass="banner-text" wrapText="true" HBox.hgrow="ALWAYS"
                        maxWidth="Infinity"/>
                 <Button fx:id="reapplyAllButton" text="%action.reapply" onAction="#onReapplyAll"

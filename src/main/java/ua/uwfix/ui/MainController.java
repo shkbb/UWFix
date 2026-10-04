@@ -234,6 +234,7 @@ public final class MainController {
 
         autostartCheck.setTooltip(new Tooltip(I18n.t("tooltip.autostart")));
         autostartCheck.selectedProperty().addListener((o, was, now) -> onAutostartToggled(now));
+        refreshButton.setGraphic(Icons.refresh());
         refreshButton.setTooltip(new Tooltip(I18n.t("tooltip.refresh")));
         doubleCheck.setTooltip(new Tooltip(I18n.t("tooltip.double")));
         versionLabel.setText(App.NAME + " " + App.VERSION);
@@ -837,7 +838,7 @@ public final class MainController {
         if (rows.isEmpty()) {
             setStatus("∅", "status-idle", I18n.t("status.notFound.title"), I18n.t("status.notFound.text"));
         } else if (!changed.isEmpty()) {
-            setStatus("⟳", "status-warn", I18n.t("status.updated.title"), I18n.t("status.updated.text"));
+            setStatus("⬆", "status-warn", I18n.t("status.updated.title"), I18n.t("status.updated.text"));
         } else if (!patched.isEmpty()) {
             PatchRecord r = patched.get(0).record();
             int count = patched.stream().mapToInt(p -> p.record().changes().size()).sum();

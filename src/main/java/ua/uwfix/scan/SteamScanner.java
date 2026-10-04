@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Ігри Steam.
@@ -46,6 +47,13 @@ public final class SteamScanner implements GameScanner {
             "1905180", // OBS Studio
             "400040",  // ShareX
             "629520"); // Soundpad
+
+    /**
+     * Версії Proton, які Steam встановлює як окремі «програми»: «Proton 9.0», «Proton Experimental»,
+     * «Proton Hotfix», середовища для античитів. Гра на кшталт «Proton Quest» сюди не потрапляє.
+     */
+    private static final Pattern PROTON_TOOL =
+            Pattern.compile("proton (\\d.*|experimental|hotfix|next|easyanticheat runtime|battleye runtime)");
 
     private final Path steamRootOverride;
 
@@ -223,7 +231,7 @@ public final class SteamScanner implements GameScanner {
             return true;
         }
         String lower = name.toLowerCase(Locale.ROOT);
-        return lower.startsWith("proton ") || lower.equals("proton experimental")
+        return PROTON_TOOL.matcher(lower).matches()
                 || lower.startsWith("steam linux runtime") || lower.contains("redistributable");
     }
 }
