@@ -340,8 +340,10 @@ public final class ResolutionUnlocker {
         bases.addAll(matchingFolders(documents.resolve("My Games"), names));
         List<Path> candidates = new ArrayList<>();
         for (Path base : bases) {
-            for (String platform : UNREAL_PLATFORMS) {
-                candidates.add(base.resolve("Saved").resolve("Config").resolve(platform).resolve("GameUserSettings.ini"));
+            for (Path saved : savedFolders(base)) {
+                for (String platform : UNREAL_PLATFORMS) {
+                    candidates.add(saved.resolve("Config").resolve(platform).resolve("GameUserSettings.ini"));
+                }
             }
         }
         return newest(candidates).map(file -> {
@@ -351,13 +353,32 @@ public final class ResolutionUnlocker {
         });
     }
 
-    /** Папки з налаштуваннями Unreal ({@code Saved\Config}), назва яких схожа на назву гри. */
+    /**
+     * Папки збережень Unreal: зазвичай {@code Saved}, але деякі ігри ведуть окрему папку для кожного
+     * акаунта — {@code Saved_Steam_<SteamID>} (Life is Strange: Reunion), {@code Saved_EGS_<id>} тощо.
+     */
+    static List<Path> savedFolders(Path base) {
+        List<Path> result = new ArrayList<>();
+        try (DirectoryStream<Path> dirs = Files.newDirectoryStream(base, Files::isDirectory)) {
+            for (Path dir : dirs) {
+                String name = dir.getFileName().toString().toLowerCase(Locale.ROOT);
+                if (name.equals("saved") || name.startsWith("saved_")) {
+                    result.add(dir);
+                }
+            }
+        } catch (IOException e) {
+            return result; // папки немає — гру ще не запускали
+        }
+        return result;
+    }
+
+    /** Папки з налаштуваннями Unreal ({@code Saved*\Config}), назва яких схожа на назву гри. */
     private static List<Path> matchingFolders(Path parent, List<String> names) {
         List<Path> result = new ArrayList<>();
         try (DirectoryStream<Path> dirs = Files.newDirectoryStream(parent, Files::isDirectory)) {
             for (Path dir : dirs) {
                 if (nameMatches(dir.getFileName().toString(), names)
-                        && Files.isDirectory(dir.resolve("Saved").resolve("Config"))) {
+                        && savedFolders(dir).stream().anyMatch(s -> Files.isDirectory(s.resolve("Config")))) {
                     result.add(dir);
                 }
             }

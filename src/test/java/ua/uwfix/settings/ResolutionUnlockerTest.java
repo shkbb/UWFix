@@ -68,6 +68,37 @@ class ResolutionUnlockerTest {
         assertTrue(Files.exists(ini.resolveSibling("GameUserSettings.ini" + ResolutionUnlocker.BACKUP_SUFFIX)));
     }
 
+    /** Life is Strange: Reunion — окрема папка збережень для кожного акаунта Steam, дві секції *GameUserSettings. */
+    @Test
+    void unrealSavedFolderPerSteamAccount() throws IOException {
+        Path game = dir.resolve("Games/LifeisStrangeReunion");
+        touch(game.resolve("Iris/Binaries/Win64/Iris-Win64-Shipping.exe"));
+        touch(game.resolve("LifeIsStrangeReunion.exe"));
+        Path ini = dir.resolve("Local/Iris/Saved_Steam_76561198000000000/Config/Windows/GameUserSettings.ini");
+        Files.createDirectories(ini.getParent());
+        Files.writeString(ini, String.join("\r\n",
+                "[/Script/D9Runtime.D9GameUserSettings]",
+                "ResolutionSizeX=1920",
+                "ResolutionSizeY=1080",
+                "DesiredScreenWidth=1280",
+                "DesiredScreenHeight=720",
+                "",
+                "[/Script/Engine.GameUserSettings]",
+                "bUseDesiredScreenHeight=False",
+                ""));
+
+        ResolutionUnlocker unlocker = new ResolutionUnlocker(dir.resolve("Local"), dir.resolve("Docs"));
+        GameSettings settings = unlocker.lookup(game, "Life is Strange: Reunion").settings();
+        assertEquals(ini, settings.file());
+        assertEquals(new AspectRatio(1920, 1080), settings.current());
+
+        unlocker.apply(settings, UW);
+        String text = Files.readString(ini);
+        assertTrue(text.contains("ResolutionSizeX=3440\r\nResolutionSizeY=1440\r\nDesiredScreenWidth=3440"));
+        assertEquals(1, text.lines().filter(l -> l.startsWith("ResolutionSizeX=")).count(),
+                "ключ не дублюється в іншій секції");
+    }
+
     @Test
     void unreal3EngineIniOnlySystemSettingsSectionChanges() throws IOException {
         Path game = dir.resolve("Games/Life Is Strange");
