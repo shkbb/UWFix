@@ -40,7 +40,7 @@ not taken from a fixed table.
   - only the 4 (or 8) bytes found are changed, the rest of the file is not rewritten;
   - before each write the expected bytes are verified;
   - SHA-256 checksums of the original and the result are stored.
-- **Resolution unlock**: for games that don't offer 3440×1440 in their menu, UWFix writes it straight into the game settings — `GameUserSettings.ini` (Unreal Engine 4/5), `*Engine.ini` (Unreal Engine 3, e.g. Life is Strange), the registry (Unity), `video.txt` (Source) or `*Prefs.ini` (Skyrim, Fallout).
+- **Resolution unlock**: for games that don't offer 3440×1440 in their menu, UWFix writes it straight into the game settings — `GameUserSettings.ini` (Unreal Engine 4/5, including per-account `Saved_Steam_<id>` folders), `*Engine.ini` (Unreal Engine 3, e.g. Life is Strange), the registry (Unity), `video.txt` (Source) or `*Prefs.ini` (Skyrim, Fallout).
 - **Play button**: launches the game via Steam / Epic / Ubisoft Connect (achievements and cloud saves keep working) or directly via its .exe.
 - **One-click restore** — even without the backup, because UWFix knows every changed location.
 - **Update tracking**: when a game updates (Steam replaces the file), UWFix notices the fix is gone and offers to re-apply it. Optionally it can re-apply automatically at sign-in (Windows or Linux).
@@ -87,16 +87,16 @@ App data: `%APPDATA%\UWFix\state.json` (state and settings), `%APPDATA%\UWFix\re
 
 ## Linux
 
-UWFix also works on Linux — for Windows games that run through Proton (Steam) or Wine (Heroic Games Launcher):
+UWFix also works on Linux — both for Windows games that run through Proton (Steam) or Wine (Heroic Games Launcher) and for native Linux versions of games:
 
 - **Install**: unpack `UWFix-<version>-linux-x64.tar.gz` and run `UWFix/bin/UWFix`, or install the package on Debian/Ubuntu: `sudo apt install ./uwfix_*_amd64.deb`.
 - **Games**: Steam (native, Flatpak and Snap), Epic Games and GOG installed through Heroic (from its `installed.json` lists).
-- **Patching** works exactly as on Windows: under Proton the game is the same Windows .exe.
-- **Resolution unlock** looks inside the game's Wine prefix: Steam keeps one per game in `steamapps/compatdata/<AppID>/pfx`, Heroic stores the path in the game's settings. The `.ini` files are in `drive_c/users/steamuser/…`, and the registry is the text file `user.reg`, which UWFix edits directly. Close the game first — Wine rewrites this file when it exits.
-- **Play** starts Steam games via `steam://`; Heroic games are started from Heroic.
+- **Patching** works exactly as on Windows: under Proton the game is the same Windows .exe. Native games are Linux ELF files (programs without an extension and `.so` libraries) — UWFix recognises them by their first bytes `7F 45 4C 46`, and 16:9 is stored there with the same bytes.
+- **Resolution unlock** looks inside the game's Wine prefix: Steam keeps one per game in `steamapps/compatdata/<AppID>/pfx`, Heroic stores the path in the game's settings. The `.ini` files are in `drive_c/users/steamuser/…`, and the registry is the text file `user.reg`, which UWFix edits directly. Close the game first — Wine rewrites this file when it exits. Native games keep settings in the home folder: Unity — the XML file `~/.config/unity3d/<company>/<game>/prefs`, Unreal Engine — `~/.config/Epic/<project>/Saved/Config/Linux/GameUserSettings.ini`, Source — the same `cfg/video.txt`.
+- **Play** starts Steam games via `steam://`; native games from GOG or added manually are started directly (`start.sh`, the game's `.sh` script or its ELF program); Windows games from Heroic are started from Heroic.
 - **Autostart**: `~/.config/autostart/uwfix-reapply.desktop`; app data: `~/.config/uwfix/`.
 - **Self-update** works for the tar.gz version in a folder you can write to; the .deb version opens the release page instead.
-- Native Linux builds of games (without Proton) are not supported: the 16:9 search works on Windows .exe/.dll files.
+- Native ports by porting studios (Feral, Aspyr) often store the aspect ratio differently — then UWFix honestly reports that 16:9 was not found.
 
 <details>
 <summary>More screenshots</summary>
@@ -180,10 +180,10 @@ flowchart LR
 
 ## Testing
 
-200 unit tests (JUnit 5), run on Windows and Linux: ratio-to-bytes conversion, three search algorithms (checked against a reference
+228 unit tests (JUnit 5), run on Windows and Linux: ratio-to-bytes conversion, three search algorithms (checked against a reference
 on random data), streaming scan with various chunk sizes, VDF / .reg / JSON parsers, file selection for
 different engines, the full “patch → game update → re-apply → restore” cycle, a corrupted state file,
-translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask), Linux game discovery (Steam roots, Heroic), reading and editing the Wine registry `user.reg`, finding a game's Proton prefix, unpacking .tar.gz.
+translation completeness (same keys and parameters in both languages), version comparison and safe unpacking of updates (including archives with paths escaping the folder), icon extraction from a synthetic PE file (PNG and BMP icons with a transparency mask), Linux game discovery (Steam roots, Heroic), reading and editing the Wine registry `user.reg`, finding a game's Proton prefix, unpacking .tar.gz, ELF recognition and native Linux game layouts (Unity, Unreal, Source, Godot, GameMaker), Unity `prefs` XML.
 
 Search algorithms on 128 MB of machine-code-like data (`mvnw test -Pbenchmark`):
 
